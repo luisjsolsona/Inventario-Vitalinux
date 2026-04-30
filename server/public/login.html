@@ -56,9 +56,6 @@
       border-radius: 12px;
       padding: 48px 40px;
       width: 100%;
-      max-width: 420px;
-      position: relative;
-      z-index: 1;
       box-shadow: 0 0 60px rgba(0,212,170,0.05), 0 20px 60px rgba(0,0,0,0.5);
     }
     .login-card::before {
@@ -153,14 +150,21 @@
       margin-top: 24px;
       letter-spacing: 0.1em;
     }
+    .page-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+      z-index: 1;
+    }
     .agent-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 20px 24px;
-      margin-top: 16px;
       width: 100%;
-      max-width: 420px;
     }
     .agent-title {
       font-family: 'Syne', sans-serif;
@@ -202,6 +206,7 @@
   </style>
 </head>
 <body>
+  <div class="page-wrapper">
   <div class="login-card">
     <div class="brand">
       <div class="brand-label">MistikEdu</div>
@@ -228,6 +233,7 @@
     <div class="agent-sub">Ejecuta como root en el equipo Vitalinux:</div>
     <div class="agent-cmd" id="curlCmd"></div>
     <a class="agent-dl" id="dlLink" href="/agente.sh" download="inventario-agente.sh">Descargar script</a>
+  </div>
   </div>
 
   <script>
