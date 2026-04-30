@@ -233,8 +233,52 @@
       font-size: 12px;
     }
     .history-date { color: var(--muted); white-space: nowrap; min-width: 140px; }
-    .history-campo { color: var(--accent2); min-width: 100px; }
-    .history-change { color: var(--text); }
+    .history-campo { color: var(--accent2); min-width: 110px; }
+    .history-change { color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .history-ant { color: var(--danger); text-decoration: line-through; opacity: 0.8; }
+    .history-arrow { color: var(--muted); }
+    .history-new { color: var(--accent); font-weight: 700; }
+    .history-run-sep {
+      font-size: 10px; letter-spacing: 0.15em; color: var(--muted);
+      text-transform: uppercase; padding: 10px 0 4px;
+      border-top: 1px solid var(--border); margin-top: 2px;
+    }
+    .history-run-sep:first-child { border-top: none; padding-top: 0; }
+    /* Campo que cambió en el último envío del agente */
+    .detail-item.changed {
+      border: 1px solid rgba(239,68,68,0.45);
+      background: rgba(239,68,68,0.05);
+      position: relative;
+    }
+    .detail-item.changed::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--danger);
+      border-radius: 6px 0 0 6px;
+    }
+    .change-badge {
+      display: inline-block;
+      background: rgba(239,68,68,0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.35);
+      border-radius: 4px;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 1px 5px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+    .change-prev {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+      padding-top: 5px;
+      border-top: 1px solid rgba(239,68,68,0.2);
+    }
+    .change-prev span { color: var(--danger); text-decoration: line-through; }
     .modal-footer { padding: 12px 24px 20px; display: flex; justify-content: flex-end; gap: 10px; }
 
     /* ── Toast ── */
@@ -315,7 +359,7 @@
             <th onclick="sortBy('disco_gb')">Disco</th>
             <th onclick="sortBy('tipo_disco')">Tipo</th>
             <th onclick="sortBy('version')">Versión</th>
-            <th onclick="sortBy('updated_at')">Última sync</th>
+            <th onclick="sortBy('updated_at')">Último inventario</th>
             <th>MACs</th>
             <th></th>
           </tr>
@@ -479,41 +523,87 @@ async function openDetail(cid) {
   if (!r.ok) return;
   const { equipo: e, historial } = await r.json();
 
-  document.getElementById('modalTitle').innerHTML = `<span>${e.name || 'Sin nombre'}</span> <span style="font-size:14px;color:var(--muted)">· ${e.cid}</span>`;
+  document.getElementById('modalTitle').innerHTML =
+    `<span>${e.name || 'Sin nombre'}</span> <span style="font-size:14px;color:var(--muted)">· ${e.cid}</span>`;
 
+  // Mapa campo → entrada más reciente del historial
+  const lastChange = {};
+  for (const h of historial) {
+    if (!lastChange[h.campo]) lastChange[h.campo] = h;
+  }
+
+  // Campos que cambiaron en el ÚLTIMO envío del agente (ventana 60 s)
+  const lastRunFields = new Set();
+  if (historial.length > 0) {
+    const tRef = new Date(historial[0].fecha).getTime();
+    for (const h of historial) {
+      if (tRef - new Date(h.fecha).getTime() < 60000) lastRunFields.add(h.campo);
+    }
+  }
+
+  // [etiqueta, valor_actual, es_accent, campo_historial]
   const fields = [
-    ['CID', e.cid, true], ['Estado', e.estado], ['Versión', e.version],
-    ['Arquitectura', e.arch], ['Serial', e.serial], ['Modelo', e.modelo],
-    ['CPU', e.cpu], ['RAM (MB)', e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'],
-    ['Slots RAM', e.slots_memoria], ['Disco', e.disco_gb ? fmtBytes(e.disco_gb) : '—'],
-    ['Tipo disco', e.tipo_disco], ['IP Local', e.ip],
-    ['IP Pública', e.ip_publica], ['MAC Ethernet', e.mac_ethernet],
-    ['MAC WiFi', e.mac_wifi], ['Gráfica', e.grafica],
-    ['Dualizado', e.dualizado], ['Secure Boot', e.secure_boot],
-    ['Etiquetas', e.etiquetas], ['Última act.', fmtDate(e.updated_at)],
+    ['CID',               e.cid,                                              true,  null],
+    ['Estado',            e.estado,                                           false, 'estado'],
+    ['Versión',           e.version,                                          false, 'version'],
+    ['Arquitectura',      e.arch,                                             false, 'arch'],
+    ['Serial',            e.serial,                                           false, 'serial'],
+    ['Modelo',            e.modelo,                                           false, 'modelo'],
+    ['CPU',               e.cpu,                                              false, 'cpu'],
+    ['RAM (MB)',          e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—', false, 'memoria_mb'],
+    ['Slots RAM',         e.slots_memoria,                                    false, 'slots_memoria'],
+    ['Disco',             e.disco_gb ? fmtBytes(e.disco_gb) : '—',           false, 'disco_gb'],
+    ['Tipo disco',        e.tipo_disco,                                       false, 'tipo_disco'],
+    ['IP Local',          e.ip,                                               false, 'ip'],
+    ['IP Pública',        e.ip_publica,                                       false, 'ip_publica'],
+    ['MAC Ethernet',      e.mac_ethernet,                                     false, 'mac_ethernet'],
+    ['MAC WiFi',          e.mac_wifi,                                         false, 'mac_wifi'],
+    ['Gráfica',           e.grafica,                                          false, 'grafica'],
+    ['Dualizado',         e.dualizado,                                        false, 'dualizado'],
+    ['Secure Boot',       e.secure_boot,                                      false, 'secure_boot'],
+    ['Etiquetas',         e.etiquetas,                                        false, 'etiquetas'],
+    ['Último inventario', fmtDate(e.updated_at),                             false, null],
   ];
 
-  const grid = fields.map(([k, v, accent]) => `
-    <div class="detail-item">
-      <div class="detail-key">${k}</div>
-      <div class="detail-val ${accent ? 'accent' : ''}">${v || '—'}</div>
-    </div>
-  `).join('');
+  const grid = fields.map(([k, v, accent, campo]) => {
+    const changed = campo && lastRunFields.has(campo);
+    const prev = changed && lastChange[campo] ? lastChange[campo].valor_ant : null;
+    return `
+      <div class="detail-item${changed ? ' changed' : ''}">
+        <div class="detail-key">${k}${changed ? '<span class="change-badge">CAMBIÓ</span>' : ''}</div>
+        <div class="detail-val${accent ? ' accent' : ''}">${v || '—'}</div>
+        ${changed ? `<div class="change-prev">Antes: <span>${prev || '∅'}</span></div>` : ''}
+      </div>`;
+  }).join('');
 
-  const hist = historial.length
-    ? historial.map(h => `
-      <div class="history-item">
-        <span class="history-date">${fmtDate(h.fecha)}</span>
-        <span class="history-campo">${h.campo}</span>
-        <span class="history-change"><span style="color:var(--muted)">${h.valor_ant || '∅'}</span> → ${h.valor_new || '∅'}</span>
-      </div>
-    `).join('')
-    : '<div style="color:var(--muted);font-size:12px">Sin cambios registrados</div>';
+  // Historial agrupado por ejecución del agente (salto >= 60 s = nueva ejecución)
+  let histHtml = '';
+  if (historial.length) {
+    let prevT = null;
+    for (const h of historial) {
+      const t = new Date(h.fecha).getTime();
+      if (prevT === null || prevT - t >= 60000) {
+        histHtml += `<div class="history-run-sep">${fmtDate(h.fecha)}</div>`;
+      }
+      prevT = t;
+      histHtml += `
+        <div class="history-item">
+          <span class="history-campo">${h.campo}</span>
+          <span class="history-change">
+            <span class="history-ant">${h.valor_ant || '∅'}</span>
+            <span class="history-arrow">→</span>
+            <span class="history-new">${h.valor_new || '∅'}</span>
+          </span>
+        </div>`;
+    }
+  } else {
+    histHtml = '<div style="color:var(--muted);font-size:12px">Sin cambios registrados</div>';
+  }
 
   document.getElementById('modalBody').innerHTML = `
     <div class="detail-grid">${grid}</div>
     <div class="section-title">Historial de cambios</div>
-    ${hist}
+    ${histHtml}
   `;
 
   document.getElementById('modalFooter').innerHTML = isAdmin
