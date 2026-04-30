@@ -4,19 +4,22 @@ Sistema de inventario hardware centralizado para institutos con equipos Vitalinu
 
 ## Funcionalidad principal
 
-La plataforma permite a los técnicos de sistemas llevar un inventario actualizado de todos los equipos del centro sin intervención manual. Un agente Bash ligero, instalado una vez en cada equipo, recoge 21 campos de hardware —CPU, RAM, disco, red, Secure Boot, etiquetas Migasfree, etc.— y los envía al servidor en cada arranque y diariamente a las 08:05. El servidor registra el historial de cambios campo a campo, permitiendo detectar cuándo cambió cualquier dato de un equipo.
+La plataforma permite a los técnicos de sistemas llevar un inventario actualizado de todos los equipos del centro sin intervención manual. Un agente Bash ligero, instalado una vez en cada equipo, recoge 21 campos de hardware —CPU, RAM, disco, red, Secure Boot, etiquetas Migasfree, etc.— y los envía al servidor en cada arranque y diariamente a las 08:05. El servidor detecta automáticamente qué campos han cambiado respecto al envío anterior y los registra en un historial por equipo.
 
 ## Características principales
 
 **Para el técnico / administrador:**
 - Dashboard web con búsqueda, filtros por versión y tipo de disco, y modal de detalle por equipo
-- Historial de cambios por equipo — detecta automáticamente qué campos han variado y cuándo
+- Campo **Último inventario** en cada equipo — fecha y hora exacta en que el agente se ejecutó por última vez
+- Campos que cambiaron en el último envío resaltados en rojo en el modal de detalle, mostrando el valor anterior y el actual
+- Historial de cambios agrupado por ejecución del agente — cada sesión aparece con su fecha/hora como separador
 - Exportación del inventario completo en TSV compatible con LibreOffice Calc y Excel
 - Eliminación de equipos con borrado en cascada del historial
 - Estadísticas globales: total de equipos, distribución de versiones y tipos de disco
 
 **Para el agente en los equipos:**
-- Instalación en un solo comando, sin dependencias adicionales en el cliente
+- Instalación en un solo comando descargando el script directamente desde el servidor, sin configuración manual
+- El script descargado tiene la IP del servidor y el token ya rellenos automáticamente
 - Recogida automática de serial, modelo, CPU, RAM, slots de memoria, disco, tipo de disco, MACs ethernet y WiFi, gráfica, IP local, IP pública, Secure Boot y estado de dualizado
 - Integración nativa con Migasfree — usa `migasfree-cid` como identificador y recoge etiquetas del cliente
 - Fallback automático al hash de MAC si Migasfree no está disponible
@@ -39,24 +42,13 @@ Acceder en `http://localhost:3900`. Las credenciales por defecto son **admin / a
 
 ## Añadir un equipo cliente al inventario
 
-El inventario se alimenta mediante un agente Bash que se instala una vez en cada equipo Vitalinux. Al ejecutarse, recoge los datos de hardware y los envía al servidor automáticamente.
-
-**Paso 1 — Configurar el agente**
-
-Editar las dos variables al inicio de `agent/inventario-agente.sh`:
+La página de login del servidor muestra el comando de instalación con la IP ya incluida. En el equipo Vitalinux, ejecutar como root:
 
 ```bash
-SERVER_URL="http://192.168.0.100:3900"        # IP del servidor Docker
-API_TOKEN="cambia_esto_por_un_secreto_seguro" # Valor de API_TOKEN en docker-compose.yml
+curl -fsSL http://<IP_SERVIDOR>:3900/agente.sh | sudo bash
 ```
 
-**Paso 2 — Instalar en el equipo**
-
-```bash
-sudo ./instalar-agente.sh
-```
-
-Esto copia el agente a `/usr/local/bin/`, registra un cron que lo ejecuta al arranque y cada día a las 08:05, y lanza el primer envío de forma inmediata. El equipo aparece en el dashboard en cuanto el servidor recibe los datos.
+El servidor sirve el script con `SERVER_URL` y `API_TOKEN` ya configurados automáticamente. El agente se instala en `/usr/local/bin/`, registra un cron que lo ejecuta al arranque y cada día a las 08:05, y lanza el primer envío de forma inmediata. El equipo aparece en el dashboard en cuanto el servidor recibe los datos.
 
 **Envío manual o para pruebas**
 
