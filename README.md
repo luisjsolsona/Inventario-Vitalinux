@@ -11,22 +11,28 @@ La plataforma permite a los técnicos de sistemas llevar un inventario actualiza
 **Para el técnico / administrador:**
 - Dashboard web con búsqueda, filtros por versión y tipo de disco, y modal de detalle por equipo
 - Campo **Último inventario** en cada equipo — fecha y hora exacta en que el agente se ejecutó por última vez
-- Campos que cambiaron en el último envío resaltados en rojo en el modal de detalle, mostrando el valor anterior y el actual
-- Historial de cambios agrupado por ejecución del agente — cada sesión aparece con su fecha/hora como separador
+- Campos que cambiaron en el último envío resaltados en rojo, mostrando el valor anterior y el actual
+- Historial de cambios agrupado por ejecución del agente
 - Exportación del inventario completo en TSV compatible con LibreOffice Calc y Excel
 - Eliminación de equipos con borrado en cascada del historial
 - Estadísticas globales: total de equipos, distribución de versiones y tipos de disco
 
+**Gestión de usuarios:**
+- Tres niveles de acceso: **admin** (gestión total), **tecnico** (lectura y exportación) y **viewer** (solo lectura)
+- Panel de administración de usuarios accesible desde el header (solo administradores): crear, editar rol y eliminar usuarios
+- Protección para no eliminar el último administrador del sistema
+- Cualquier usuario puede cambiar su propia contraseña desde el botón "Mi contraseña" en el header
+
 **Para el agente en los equipos:**
-- Instalación en un solo comando descargando el script directamente desde el servidor, sin configuración manual
-- El script descargado tiene la IP del servidor y el token ya rellenos automáticamente
+- La página de login muestra el comando de instalación con la IP del servidor ya incluida
+- Instalación en un solo comando desde el equipo cliente, sin configuración manual
 - Recogida automática de serial, modelo, CPU, RAM, slots de memoria, disco, tipo de disco, MACs ethernet y WiFi, gráfica, IP local, IP pública, Secure Boot y estado de dualizado
 - Integración nativa con Migasfree — usa `migasfree-cid` como identificador y recoge etiquetas del cliente
 - Fallback automático al hash de MAC si Migasfree no está disponible
 
 ## Implementación técnica
 
-La aplicación usa un diseño cliente-servidor: agente Bash en los equipos Vitalinux, servidor Express con base de datos SQLite y frontend HTML/CSS/JS vanilla. La autenticación se gestiona con JWT almacenado en cookie httpOnly con flag sameSite. El token de los agentes se compara con comparación timing-safe para evitar ataques de temporización. El login web incluye rate limiting de 5 intentos por IP cada 10 minutos. El sistema corre en Docker y es compatible con CasaOS, Linux, Windows y macOS.
+La aplicación usa un diseño cliente-servidor: agente Bash en los equipos Vitalinux, servidor Express con base de datos SQLite y frontend HTML/CSS/JS vanilla con tema claro. La autenticación se gestiona con JWT almacenado en cookie httpOnly con flag sameSite. El token de los agentes se compara con comparación timing-safe para evitar ataques de temporización. El login web incluye rate limiting de 5 intentos por IP cada 10 minutos. El sistema corre en Docker y es compatible con CasaOS, Linux, Windows y macOS.
 
 ## Quick Start
 
@@ -38,7 +44,7 @@ cd Inventario-Vitalinux
 docker compose up -d --build
 ```
 
-Acceder en `http://localhost:3900`. Las credenciales por defecto son **admin / admin1234** — cambiarlas en `docker-compose.yml` antes de desplegar en producción.
+Acceder en `http://localhost:3900`. Las credenciales por defecto son **admin / admin1234** — cambiarlas desde el panel de usuarios o en `docker-compose.yml` antes de desplegar en producción.
 
 ## Añadir un equipo cliente al inventario
 

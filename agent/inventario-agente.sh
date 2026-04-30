@@ -6,7 +6,7 @@
 #
 # Uso: sudo ./inventario-agente.sh
 # Configuración: editar las variables SERVER_URL y API_TOKEN
-# MistikEdu – Luis J. Solsona
+# Luis J. Solsona
 # ============================================================
 
 set -uo pipefail

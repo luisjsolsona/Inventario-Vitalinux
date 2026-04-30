@@ -30,7 +30,7 @@ echo "✓ Agente instalado en $AGENT_DEST"
 
 # Crear cron: ejecutar al arranque + cada 24h
 cat > "$CRON_FILE" <<'CRON'
-# Inventario Vitalinux - MistikEdu
+# Inventario Vitalinux
 # Envía inventario al servidor al arranque y cada día a las 08:05
 @reboot root /usr/local/bin/inventario-agente.sh >> /var/log/inventario-agente.log 2>&1
 5 8 * * * root /usr/local/bin/inventario-agente.sh >> /var/log/inventario-agente.log 2>&1
