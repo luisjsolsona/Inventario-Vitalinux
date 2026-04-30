@@ -35,10 +35,37 @@ cd Inventario-Vitalinux
 docker compose up -d --build
 ```
 
-Acceder en `http://localhost:3900` con las credenciales configuradas en `docker-compose.yml`.
+Acceder en `http://localhost:3900`. Las credenciales por defecto son **admin / admin1234** — cambiarlas en `docker-compose.yml` antes de desplegar en producción.
 
-Para instalar el agente en un equipo Vitalinux, editar `SERVER_URL` y `API_TOKEN` en `agent/inventario-agente.sh` y ejecutar:
+## Añadir un equipo cliente al inventario
+
+El inventario se alimenta mediante un agente Bash que se instala una vez en cada equipo Vitalinux. Al ejecutarse, recoge los datos de hardware y los envía al servidor automáticamente.
+
+**Paso 1 — Configurar el agente**
+
+Editar las dos variables al inicio de `agent/inventario-agente.sh`:
+
+```bash
+SERVER_URL="http://192.168.0.100:3900"        # IP del servidor Docker
+API_TOKEN="cambia_esto_por_un_secreto_seguro" # Valor de API_TOKEN en docker-compose.yml
+```
+
+**Paso 2 — Instalar en el equipo**
 
 ```bash
 sudo ./instalar-agente.sh
 ```
+
+Esto copia el agente a `/usr/local/bin/`, registra un cron que lo ejecuta al arranque y cada día a las 08:05, y lanza el primer envío de forma inmediata. El equipo aparece en el dashboard en cuanto el servidor recibe los datos.
+
+**Envío manual o para pruebas**
+
+```bash
+sudo /usr/local/bin/inventario-agente.sh
+```
+
+El log de cada ejecución queda en `/var/log/inventario-agente.log`.
+
+**Distribución masiva con Migasfree**
+
+Si se usa Migasfree para gestión centralizada, se puede distribuir el agente como fórmula o script post-install copiando `inventario-agente.sh` a `/usr/local/bin/` con permisos 755 y añadiendo la entrada de cron en `/etc/cron.d/inventario-vitalinux`.
