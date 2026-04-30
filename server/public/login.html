@@ -153,6 +153,52 @@
       margin-top: 24px;
       letter-spacing: 0.1em;
     }
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-top: 16px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .agent-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .agent-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .agent-cmd {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--accent2);
+      word-break: break-all;
+      margin-bottom: 10px;
+      cursor: pointer;
+      user-select: all;
+    }
+    .agent-dl {
+      display: inline-block;
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 10px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .agent-dl:hover { color: var(--text); border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -177,7 +223,20 @@
     <div class="footer-note">INVENTARIO · v1.0 · ARAGÓN</div>
   </div>
 
+  <div class="agent-card">
+    <div class="agent-title">Instalar agente en un equipo</div>
+    <div class="agent-sub">Ejecuta como root en el equipo Vitalinux:</div>
+    <div class="agent-cmd" id="curlCmd"></div>
+    <a class="agent-dl" id="dlLink" href="/agente.sh" download="inventario-agente.sh">Descargar script</a>
+  </div>
+
   <script>
+    // Construir el one-liner de instalación con la URL real del servidor
+    const origin = window.location.origin;
+    const cmd = `curl -fsSL ${origin}/agente.sh | sudo bash`;
+    document.getElementById('curlCmd').textContent = cmd;
+    document.getElementById('dlLink').href = `${origin}/agente.sh`;
+
     document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
       const err = document.getElementById('err');

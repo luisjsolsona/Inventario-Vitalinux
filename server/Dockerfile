@@ -7,6 +7,7 @@ RUN npm install --production
 
 COPY src/ ./src/
 COPY public/ ./public/
+COPY agent/ ./agent/
 
 RUN mkdir -p /app/data
 
