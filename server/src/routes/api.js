@@ -1,0 +1,95 @@
+const express = require('express');
+const { getDB } = require('../db');
+const { apiTokenMiddleware } = require('../middleware/auth');
+
+const router = express.Router();
+
+const MAX_CID   = 128;
+const MAX_FIELD = 512;
+const trim = (v, max = MAX_FIELD) => (v == null ? null : String(v).trim().slice(0, max));
+
+// ── POST /api/inventario  (llamado por el script bash) ────────
+router.post('/inventario', apiTokenMiddleware, (req, res) => {
+  const d = req.body;
+  if (!d.cid || typeof d.cid !== 'string' || !d.cid.trim()) {
+    return res.status(400).json({ error: 'CID requerido' });
+  }
+  d.cid = d.cid.trim().slice(0, MAX_CID);
+
+  // Sanitizar todos los campos de texto
+  for (const key of ['estado','version','arch','name','serial','ultima_act','etiquetas',
+      'cpu','slots_memoria','disco_gb','tipo_disco','modelo',
+      'ip','mac_ethernet','mac_wifi','grafica','dualizado','secure_boot','ip_publica']) {
+    d[key] = trim(d[key]);
+  }
+
+  const db = getDB();
+  const existing = db.prepare('SELECT * FROM equipos WHERE cid = ?').get(d.cid);
+
+  const campos = [
+    'estado','version','arch','name','serial','ultima_act','etiquetas',
+    'cpu','memoria_mb','slots_memoria','disco_gb','tipo_disco','modelo',
+    'ip','mac_ethernet','mac_wifi','grafica','dualizado','secure_boot','ip_publica'
+  ];
+
+  if (existing) {
+    // Registrar cambios en historial
+    for (const campo of campos) {
+      const vAnt = String(existing[campo] ?? '');
+      const vNew = String(d[campo] ?? '');
+      if (vAnt !== vNew) {
+        db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
+          .run(d.cid, campo, vAnt, vNew);
+      }
+    }
+    // Actualizar
+    db.prepare(`UPDATE equipos SET
+      estado=?, version=?, arch=?, name=?, serial=?, ultima_act=?, etiquetas=?,
+      cpu=?, memoria_mb=?, slots_memoria=?, disco_gb=?, tipo_disco=?, modelo=?,
+      ip=?, mac_ethernet=?, mac_wifi=?, grafica=?, dualizado=?, secure_boot=?,
+      ip_publica=?, updated_at=datetime('now')
+      WHERE cid=?
+    `).run(
+      d.estado, d.version, d.arch, d.name, d.serial, d.ultima_act, d.etiquetas,
+      d.cpu, d.memoria_mb, d.slots_memoria, d.disco_gb, d.tipo_disco, d.modelo,
+      d.ip, d.mac_ethernet, d.mac_wifi, d.grafica, d.dualizado, d.secure_boot,
+      d.ip_publica, d.cid
+    );
+    return res.json({ ok: true, accion: 'actualizado' });
+  } else {
+    // Insertar nuevo
+    db.prepare(`INSERT INTO equipos
+      (cid, estado, version, arch, name, serial, ultima_act, etiquetas,
+       cpu, memoria_mb, slots_memoria, disco_gb, tipo_disco, modelo,
+       ip, mac_ethernet, mac_wifi, grafica, dualizado, secure_boot, ip_publica)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      d.cid, d.estado||'Activo', d.version, d.arch, d.name, d.serial,
+      d.ultima_act, d.etiquetas, d.cpu, d.memoria_mb, d.slots_memoria,
+      d.disco_gb, d.tipo_disco, d.modelo, d.ip, d.mac_ethernet, d.mac_wifi,
+      d.grafica, d.dualizado, d.secure_boot, d.ip_publica
+    );
+    return res.json({ ok: true, accion: 'registrado' });
+  }
+});
+
+// ── GET /api/export/csv  (descarga CSV) ───────────────────────
+router.get('/export/csv', apiTokenMiddleware, (req, res) => {
+  const equipos = getDB().prepare('SELECT * FROM equipos ORDER BY name').all();
+  const header = [
+    'CID','ESTADO','VERSION','ARCH SO-HW','NAME','SERIAL','ÚLTIMA ACTUALIZACIÓN',
+    'ETIQUETAS','CPU','MEMORIA – MB','SLOTS MEMORIA','DISCO – GB','TIPO DISCO',
+    'MODELO','IP','DIRECCIONES MAC','WIFI MAC','GRAFICA','DUALIZADO','SECURE BOOT','IP PUBLICA'
+  ].join('\t');
+  const rows = equipos.map(e => [
+    e.cid, e.estado, e.version, e.arch, e.name, e.serial, e.ultima_act,
+    e.etiquetas, e.cpu, e.memoria_mb, e.slots_memoria, e.disco_gb, e.tipo_disco,
+    e.modelo, e.ip, e.mac_ethernet, e.mac_wifi, e.grafica, e.dualizado,
+    e.secure_boot, e.ip_publica
+  ].join('\t')).join('\n');
+  res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="inventario.tsv"');
+  res.send(header + '\n' + rows);
+});
+
+module.exports = router;

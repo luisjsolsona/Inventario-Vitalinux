@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  inventario:
+    build: ./server
+    container_name: inventario-vitalinux
+    restart: unless-stopped
+    ports:
+      - "3900:3900"
+    volumes:
+      - inventario_data:/app/data
+    environment:
+      - PORT=3900
+      - JWT_SECRET=cambia_esto_por_un_secreto_seguro   # CAMBIAR antes de desplegar
+      - API_TOKEN=cambia_esto_por_un_secreto_seguro    # Mismo valor que JWT_SECRET o uno distinto
+      - ADMIN_USER=admin
+      - ADMIN_PASS=admin1234                           # CAMBIAR antes de desplegar
+    labels:
+      - "com.casaos.appstore.app.title=Inventario Vitalinux"
+      - "com.casaos.appstore.app.description=Inventario de equipos Vitalinux del instituto"
+      - "com.casaos.appstore.app.port.map=3900:3900"
+
+volumes:
+  inventario_data:

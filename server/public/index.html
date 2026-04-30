@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventario Vitalinux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2235;
+      --border: #1e293b;
+      --accent: #00d4aa;
+      --accent2: #3b82f6;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 8px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+    /* ── Layout ── */
+    .shell { display: flex; flex-direction: column; min-height: 100vh; }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .logo span { color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .badge-user {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn-accent { background: var(--accent); color: #0a0e1a; font-weight: 700; }
+    .btn-accent:hover { opacity: 0.85; }
+    .btn-danger { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+    main { flex: 1; padding: 24px; max-width: 1600px; margin: 0 auto; width: 100%; }
+
+    /* ── Stats ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0.3;
+    }
+    .stat-label { font-size: 10px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .stat-val { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--accent); line-height: 1; }
+    .stat-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .search-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-wrap input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 14px 8px 36px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+    }
+    .search-wrap input:focus { border-color: var(--accent); }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: auto;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    thead { background: var(--surface2); position: sticky; top: 0; }
+    th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    th:hover { color: var(--accent); }
+    th.sorted { color: var(--accent); }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); cursor: pointer; }
+    .tag-cid { font-size: 11px; color: var(--accent); font-weight: 700; }
+    .tag-name { color: var(--text); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .pill-activo { background: rgba(0,212,170,0.12); color: var(--accent); border: 1px solid rgba(0,212,170,0.25); }
+    .pill-inactivo { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
+    .pill-ssd { background: rgba(59,130,246,0.12); color: var(--accent2); border: 1px solid rgba(59,130,246,0.25); }
+    .pill-hdd { background: rgba(245,158,11,0.12); color: var(--warn); border: 1px solid rgba(245,158,11,0.25); }
+    .pill-nvme { background: rgba(0,212,170,0.12); color: var(--accent); border: 1px solid rgba(0,212,170,0.25); }
+    .mac { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; }
+    .no-data { text-align: center; padding: 48px; color: var(--muted); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 720px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+    }
+    .modal-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
+    .modal-title span { color: var(--accent); }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 4px; }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 20px 24px 24px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .detail-item { background: var(--surface2); border-radius: 6px; padding: 12px 14px; }
+    .detail-key { font-size: 10px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+    .detail-val { font-size: 13px; color: var(--text); word-break: break-all; }
+    .detail-val.accent { color: var(--accent); font-weight: 700; }
+    .section-title { font-size: 11px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin: 16px 0 8px; }
+    .history-item {
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: var(--surface2);
+      margin-bottom: 6px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 12px;
+    }
+    .history-date { color: var(--muted); white-space: nowrap; min-width: 140px; }
+    .history-campo { color: var(--accent2); min-width: 100px; }
+    .history-change { color: var(--text); }
+    .modal-footer { padding: 12px 24px 20px; display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 13px;
+      z-index: 999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.ok { border-color: rgba(0,212,170,0.4); color: var(--accent); }
+    .toast.err { border-color: rgba(239,68,68,0.4); color: var(--danger); }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Inventario <span>Vitalinux</span>
+    </div>
+    <div class="header-right">
+      <span class="badge-user" id="badgeUser">···</span>
+      <button class="btn btn-ghost" onclick="exportTSV()">⬇ Exportar TSV</button>
+      <button class="btn btn-ghost" onclick="logout()">Salir</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- STATS -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-label">Total equipos</div><div class="stat-val" id="sTotal">—</div></div>
+      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-val" id="sActivos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Última sync</div><div class="stat-val" style="font-size:14px;line-height:1.4" id="sUlt">—</div><div class="stat-sub" id="sUltSub"></div></div>
+      <div class="stat-card" id="sVersionCard"><div class="stat-label">Versiones</div><div id="sVersiones" style="font-size:12px;line-height:1.8;margin-top:4px">—</div></div>
+      <div class="stat-card"><div class="stat-label">Tipo disco</div><div id="sDiscos" style="font-size:12px;line-height:1.8;margin-top:4px">—</div></div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="searchInput" placeholder="Buscar por nombre, IP, CPU, modelo, MAC...">
+      </div>
+      <select id="filterEstado">
+        <option value="">Todos los estados</option>
+        <option value="Activo">Activo</option>
+        <option value="Inactivo">Inactivo</option>
+      </select>
+      <select id="filterDisco">
+        <option value="">Todos los discos</option>
+        <option value="ssd">SSD</option>
+        <option value="hdd">HDD</option>
+        <option value="nvme">NVMe</option>
+      </select>
+      <button class="btn btn-ghost" onclick="loadData()">↻ Actualizar</button>
+      <span id="countBadge" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('cid')">CID</th>
+            <th onclick="sortBy('estado')">Estado</th>
+            <th onclick="sortBy('name')">Nombre</th>
+            <th onclick="sortBy('ip')">IP</th>
+            <th onclick="sortBy('cpu')">CPU</th>
+            <th onclick="sortBy('memoria_mb')">RAM MB</th>
+            <th onclick="sortBy('disco_gb')">Disco</th>
+            <th onclick="sortBy('tipo_disco')">Tipo</th>
+            <th onclick="sortBy('version')">Versión</th>
+            <th onclick="sortBy('updated_at')">Última sync</th>
+            <th>MACs</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL DETALLE -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:10px;letter-spacing:0.2em;color:var(--muted);margin-bottom:4px">DETALLE EQUIPO</div>
+        <div class="modal-title" id="modalTitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Estado global ─────────────────────────────────────────────
+let allData = [];
+let sortField = 'updated_at';
+let sortDir = -1;
+let currentCID = null;
+let isAdmin = false;
+
+// ── Init ──────────────────────────────────────────────────────
+(async () => {
+  // Verificar sesión
+  try {
+    const r = await fetch('/equipos/', { credentials: 'include' });
+    if (r.status === 401) { location.href = '/login.html'; return; }
+    allData = await r.json();
+  } catch { location.href = '/login.html'; return; }
+
+  // Leer cookie para mostrar usuario (decodifica JWT)
+  const cookieToken = document.cookie.split(';').find(c => c.trim().startsWith('token='));
+  if (cookieToken) {
+    try {
+      const payload = JSON.parse(atob(cookieToken.split('=')[1].split('.')[1]));
+      document.getElementById('badgeUser').textContent = payload.username;
+      isAdmin = payload.rol === 'admin';
+    } catch {}
+  }
+
+  await loadStats();
+  render();
+
+  // Filtros
+  document.getElementById('searchInput').addEventListener('input', render);
+  document.getElementById('filterEstado').addEventListener('change', render);
+  document.getElementById('filterDisco').addEventListener('change', render);
+})();
+
+async function loadData() {
+  const r = await fetch('/equipos/', { credentials: 'include' });
+  if (r.status === 401) { location.href = '/login.html'; return; }
+  allData = await r.json();
+  await loadStats();
+  render();
+  showToast('Datos actualizados', 'ok');
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch('/equipos/_stats', { credentials: 'include' });
+    const s = await r.json();
+    document.getElementById('sTotal').textContent = s.total;
+    document.getElementById('sActivos').textContent = s.activos;
+    const ult = s.ultimaActualizacion ? new Date(s.ultimaActualizacion) : null;
+    document.getElementById('sUlt').textContent = ult ? ult.toLocaleDateString('es-ES') : '—';
+    document.getElementById('sUltSub').textContent = ult ? ult.toLocaleTimeString('es-ES') : '';
+    document.getElementById('sVersiones').innerHTML = s.porVersion
+      .map(v => `<span style="color:var(--accent)">${v.n}</span> ${v.version || 'N/A'}`).join('<br>');
+    document.getElementById('sDiscos').innerHTML = s.porTipoDisco
+      .map(d => `<span style="color:var(--accent2)">${d.n}</span> ${d.tipo_disco || 'N/A'}`).join('<br>');
+  } catch {}
+}
+
+// ── Render tabla ──────────────────────────────────────────────
+function render() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const fEstado = document.getElementById('filterEstado').value;
+  const fDisco = document.getElementById('filterDisco').value;
+
+  let data = allData.filter(e => {
+    if (fEstado && e.estado !== fEstado) return false;
+    if (fDisco && (e.tipo_disco || '').toLowerCase() !== fDisco) return false;
+    if (q) {
+      const haystack = [e.name, e.ip, e.cpu, e.modelo, e.mac_ethernet, e.mac_wifi, e.cid, e.etiquetas]
+        .join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  data.sort((a, b) => {
+    const va = a[sortField] ?? '';
+    const vb = b[sortField] ?? '';
+    return va < vb ? -sortDir : va > vb ? sortDir : 0;
+  });
+
+  document.getElementById('countBadge').textContent = `${data.length} equipo${data.length !== 1 ? 's' : ''}`;
+
+  const tbody = document.getElementById('tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="12" class="no-data">No hay equipos que coincidan</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(e => `
+    <tr onclick="openDetail('${e.cid}')">
+      <td><span class="tag-cid">${e.cid}</span></td>
+      <td><span class="pill pill-${(e.estado||'').toLowerCase()}">${e.estado || 'N/A'}</span></td>
+      <td><span class="tag-name">${e.name || 'N/A'}</span></td>
+      <td>${e.ip || '—'}</td>
+      <td style="max-width:180px" title="${e.cpu || ''}">${e.cpu || '—'}</td>
+      <td>${e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'}</td>
+      <td>${e.disco_gb ? fmtBytes(e.disco_gb) : '—'}</td>
+      <td><span class="pill pill-${(e.tipo_disco||'').toLowerCase()}">${e.tipo_disco || '—'}</span></td>
+      <td>${e.version || '—'}</td>
+      <td style="color:var(--muted);font-size:11px">${fmtDate(e.updated_at)}</td>
+      <td class="mac">${e.mac_ethernet || '—'}</td>
+      <td><button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();openDetail('${e.cid}')">Ver →</button></td>
+    </tr>
+  `).join('');
+}
+
+function sortBy(field) {
+  if (sortField === field) sortDir *= -1;
+  else { sortField = field; sortDir = -1; }
+  render();
+}
+
+// ── Formatters ────────────────────────────────────────────────
+function fmtBytes(b) {
+  const n = Number(b);
+  if (!n) return '—';
+  if (n > 1e12) return (n/1e12).toFixed(1) + ' TB';
+  if (n > 1e9) return (n/1e9).toFixed(0) + ' GB';
+  return n + ' B';
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  return new Date(s).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+// ── Detalle modal ─────────────────────────────────────────────
+async function openDetail(cid) {
+  currentCID = cid;
+  const r = await fetch(`/equipos/${cid}`, { credentials: 'include' });
+  if (!r.ok) return;
+  const { equipo: e, historial } = await r.json();
+
+  document.getElementById('modalTitle').innerHTML = `<span>${e.name || 'Sin nombre'}</span> <span style="font-size:14px;color:var(--muted)">· ${e.cid}</span>`;
+
+  const fields = [
+    ['CID', e.cid, true], ['Estado', e.estado], ['Versión', e.version],
+    ['Arquitectura', e.arch], ['Serial', e.serial], ['Modelo', e.modelo],
+    ['CPU', e.cpu], ['RAM (MB)', e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'],
+    ['Slots RAM', e.slots_memoria], ['Disco', e.disco_gb ? fmtBytes(e.disco_gb) : '—'],
+    ['Tipo disco', e.tipo_disco], ['IP Local', e.ip],
+    ['IP Pública', e.ip_publica], ['MAC Ethernet', e.mac_ethernet],
+    ['MAC WiFi', e.mac_wifi], ['Gráfica', e.grafica],
+    ['Dualizado', e.dualizado], ['Secure Boot', e.secure_boot],
+    ['Etiquetas', e.etiquetas], ['Última act.', fmtDate(e.updated_at)],
+  ];
+
+  const grid = fields.map(([k, v, accent]) => `
+    <div class="detail-item">
+      <div class="detail-key">${k}</div>
+      <div class="detail-val ${accent ? 'accent' : ''}">${v || '—'}</div>
+    </div>
+  `).join('');
+
+  const hist = historial.length
+    ? historial.map(h => `
+      <div class="history-item">
+        <span class="history-date">${fmtDate(h.fecha)}</span>
+        <span class="history-campo">${h.campo}</span>
+        <span class="history-change"><span style="color:var(--muted)">${h.valor_ant || '∅'}</span> → ${h.valor_new || '∅'}</span>
+      </div>
+    `).join('')
+    : '<div style="color:var(--muted);font-size:12px">Sin cambios registrados</div>';
+
+  document.getElementById('modalBody').innerHTML = `
+    <div class="detail-grid">${grid}</div>
+    <div class="section-title">Historial de cambios</div>
+    ${hist}
+  `;
+
+  document.getElementById('modalFooter').innerHTML = isAdmin
+    ? `<button class="btn btn-danger" onclick="deleteEquipo('${e.cid}')">🗑 Eliminar equipo</button>`
+    : '';
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+async function deleteEquipo(cid) {
+  if (!confirm(`¿Eliminar el equipo ${cid} del inventario?`)) return;
+  const r = await fetch(`/equipos/${cid}`, { method: 'DELETE', credentials: 'include' });
+  if (r.ok) {
+    closeModal();
+    allData = allData.filter(e => e.cid !== cid);
+    render();
+    await loadStats();
+    showToast('Equipo eliminado', 'ok');
+  } else {
+    showToast('Error al eliminar', 'err');
+  }
+}
+
+// ── Export ────────────────────────────────────────────────────
+async function exportTSV() {
+  window.location.href = '/api/export/csv';
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+  location.href = '/login.html';
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+function showToast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Teclado ───────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+</body>
+</html>
