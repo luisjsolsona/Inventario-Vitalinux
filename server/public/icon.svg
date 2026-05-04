@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fondo azul redondeado -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- ── CLIPBOARD (zona izquierda) ─────────────── -->
+  <rect x="34" y="96" width="252" height="332" rx="16" fill="white" opacity="0.97"/>
+
+  <!-- Pinza superior -->
+  <rect x="104" y="74" width="112" height="46" rx="13" fill="#93c5fd"/>
+  <rect x="112" y="74" width="96" height="28" rx="9" fill="#3b82f6"/>
+
+  <!-- Cabecera azul -->
+  <rect x="34" y="96" width="252" height="58" rx="16" fill="#1d4ed8"/>
+  <rect x="34" y="130" width="252" height="24" fill="#1d4ed8"/>
+  <rect x="56" y="108" width="120" height="14" rx="4" fill="white" opacity="0.90"/>
+  <rect x="56" y="127" width="76" height="10" rx="3" fill="white" opacity="0.45"/>
+
+  <!-- Fila 1 ✓ verde -->
+  <circle cx="66" cy="192" r="14" fill="#16a34a"/>
+  <polyline points="58,192 64,199 78,183" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="90" y="186" width="152" height="12" rx="4" fill="#e2e8f0"/>
+
+  <!-- Fila 2 ✓ verde -->
+  <circle cx="66" cy="238" r="14" fill="#16a34a"/>
+  <polyline points="58,238 64,245 78,229" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="90" y="232" width="132" height="12" rx="4" fill="#e2e8f0"/>
+
+  <!-- Fila 3 ! rojo (cambio detectado) -->
+  <circle cx="66" cy="284" r="14" fill="#dc2626"/>
+  <rect x="63" y="274" width="6" height="12" rx="2" fill="white"/>
+  <circle cx="66" cy="292" r="3.5" fill="white"/>
+  <rect x="90" y="278" width="152" height="12" rx="4" fill="#fecaca"/>
+
+  <!-- Fila 4 gris -->
+  <circle cx="66" cy="330" r="14" fill="#94a3b8"/>
+  <rect x="90" y="324" width="140" height="12" rx="4" fill="#e2e8f0"/>
+
+  <!-- Fila 5 gris -->
+  <circle cx="66" cy="376" r="14" fill="#94a3b8"/>
+  <rect x="90" y="370" width="118" height="12" rx="4" fill="#e2e8f0"/>
+
+  <!-- ── PINGÜINO TUX (zona derecha, referencia Vitalinux) ── -->
+  <!-- Cuerpo -->
+  <ellipse cx="394" cy="344" rx="82" ry="100" fill="#0f172a"/>
+  <!-- Barriga blanca -->
+  <ellipse cx="394" cy="364" rx="47" ry="70" fill="white"/>
+
+  <!-- Cabeza -->
+  <ellipse cx="394" cy="224" rx="64" ry="68" fill="#0f172a"/>
+  <!-- Cara blanca -->
+  <ellipse cx="394" cy="232" rx="38" ry="42" fill="white"/>
+
+  <!-- Ojos -->
+  <circle cx="378" cy="212" r="11" fill="white"/>
+  <circle cx="410" cy="212" r="11" fill="white"/>
+  <circle cx="380" cy="214" r="7" fill="#0f172a"/>
+  <circle cx="412" cy="214" r="7" fill="#0f172a"/>
+  <circle cx="378" cy="211" r="2.5" fill="white"/>
+  <circle cx="410" cy="211" r="2.5" fill="white"/>
+
+  <!-- Pico -->
+  <ellipse cx="394" cy="256" rx="15" ry="10" fill="#f59e0b"/>
+
+  <!-- Alas -->
+  <ellipse cx="322" cy="332" rx="24" ry="58" fill="#0f172a" transform="rotate(-8,322,332)"/>
+  <ellipse cx="466" cy="332" rx="24" ry="58" fill="#0f172a" transform="rotate(8,466,332)"/>
+
+  <!-- Pies -->
+  <ellipse cx="374" cy="442" rx="28" ry="13" fill="#f59e0b"/>
+  <ellipse cx="414" cy="442" rx="28" ry="13" fill="#f59e0b"/>
+</svg>

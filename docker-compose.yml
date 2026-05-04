@@ -16,9 +16,70 @@ services:
       - ADMIN_USER=admin
       - ADMIN_PASS=admin1234                           # CAMBIAR antes de desplegar
     labels:
+      - "com.casaos.appstore.app.id=inventario-vitalinux"
       - "com.casaos.appstore.app.title=Inventario Vitalinux"
-      - "com.casaos.appstore.app.description=Inventario de equipos Vitalinux del instituto"
+      - "com.casaos.appstore.app.description=Inventario hardware centralizado para equipos Vitalinux de institutos"
+      - "com.casaos.appstore.app.icon=https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/icon.svg"
+      - "com.casaos.appstore.app.thumbnail=https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-1.jpg"
       - "com.casaos.appstore.app.port.map=3900:3900"
+      - "com.casaos.appstore.app.scheme=http"
+      - "com.casaos.appstore.app.index=/"
+      - "com.casaos.appstore.app.category=utilities"
+      - "com.casaos.appstore.app.project_url=https://github.com/luisjsolsona/Inventario-Vitalinux"
 
 volumes:
   inventario_data:
+
+# ── Metadata CasaOS (x-casaos extension) ──────────────────────────────────────
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+    - arm
+  main: inventario
+  author: luisjsolsona
+  developer: "Luis J. Solsona"
+  category: Utilities
+  project_url: "https://github.com/luisjsolsona/Inventario-Vitalinux"
+  store_app_id: inventario-vitalinux
+  icon: "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/icon.svg"
+  thumbnail: "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-1.jpg"
+  screenshot_link:
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-1.jpg"
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-2.jpg"
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-3.jpg"
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-4.jpg"
+  index: /
+  port_map: "3900"
+  scheme: http
+  title:
+    en_us: "Inventario Vitalinux"
+    es_es: "Inventario Vitalinux"
+  tagline:
+    en_us: "Automated hardware inventory for Vitalinux school computers"
+    es_es: "Inventario hardware automatizado para equipos Vitalinux del instituto"
+  description:
+    en_us: |
+      Centralized hardware inventory for educational institutions using Vitalinux (Debian-based).
+      A lightweight Bash agent installed on each computer collects 21 hardware fields (CPU, RAM,
+      disk, network, Secure Boot, Migasfree tags…) and sends them to the server on every boot.
+      The dashboard shows all equipment, detects changes automatically, and sends email alerts
+      via Gmail when hardware components are modified.
+    es_es: |
+      Inventario hardware centralizado para institutos con equipos Vitalinux (Debian educativo).
+      Un agente Bash ligero instalado en cada equipo recoge 21 campos de hardware (CPU, RAM,
+      disco, red, Secure Boot, etiquetas Migasfree…) y los envía al servidor en cada arranque.
+      El dashboard muestra todos los equipos, detecta cambios automáticamente y envía alertas
+      por correo Gmail cuando se modifica algún componente hardware.
+  tips:
+    before_install:
+      en_us: |
+        Before deploying to production, edit docker-compose.yml and change:
+        • JWT_SECRET — random secret for JWT authentication tokens
+        • API_TOKEN  — authentication token for the agents
+        • ADMIN_PASS — admin user password (default: admin1234)
+      es_es: |
+        Antes de desplegar en producción, edita docker-compose.yml y cambia:
+        • JWT_SECRET — secreto aleatorio para los tokens JWT
+        • API_TOKEN  — token de autenticación para los agentes
+        • ADMIN_PASS — contraseña del administrador (por defecto: admin1234)
