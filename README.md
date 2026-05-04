@@ -7,16 +7,16 @@ Sistema de inventario hardware centralizado para institutos con equipos Vitalinu
 La plataforma permite a los técnicos de sistemas llevar un inventario actualizado de todos los equipos del centro sin intervención manual. Un agente Bash ligero, instalado una vez en cada equipo, recoge 21 campos de hardware —CPU, RAM, disco, red, Secure Boot, etiquetas Migasfree, etc.— y los envía al servidor en cada arranque y diariamente a las 08:05. El servidor detecta automáticamente qué campos han cambiado respecto al envío anterior y los registra en un historial por equipo.
 
 ### Servidor con Listado de equipos
-![crear perfiles](inventario-vitalinux-1.jpg)
+![Servidor Inventario](inventario-vitalinux-1.jpg)
 
 ### Cliente envia su info
-![crear perfiles](inventario-vitalinux-4.jpg)
+![Cliente Inventario](inventario-vitalinux-4.jpg)
 
 ### Aviso de cambios en HW
-![crear perfiles](inventario-vitalinux-3.jpg)
+![Aviso cambios HW](inventario-vitalinux-3.jpg)
 
 ### Historico de cambios en HW
-![crear perfiles](inventario-vitalinux-2.jpg)
+![Historico cambios HW](inventario-vitalinux-2.jpg)
 
 
 **Para el técnico / administrador:**
