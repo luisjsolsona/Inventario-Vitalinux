@@ -142,8 +142,12 @@
     .history-new { color: var(--green); font-weight: 600; }
 
     /* ── Users table ── */
-    .users-table { width: 100%; border-collapse: collapse; }
-    .users-table th, .users-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .users-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .users-table th, .users-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .users-table th:nth-child(1), .users-table td:nth-child(1) { width: 30%; }
+    .users-table th:nth-child(2), .users-table td:nth-child(2) { width: 20%; }
+    .users-table th:nth-child(3), .users-table td:nth-child(3) { width: 26%; }
+    .users-table th:nth-child(4), .users-table td:nth-child(4) { width: 24%; }
     .users-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text2); background: var(--bg3); }
     .users-table tr:last-child td { border-bottom: none; }
     .role-tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
@@ -601,7 +605,7 @@ async function loadUsuarios() {
       <td><strong>${u.username}</strong></td>
       <td>${roleTag(u.rol)}</td>
       <td style="color:var(--text2);font-size:12px">${fmtDate(u.created_at)}</td>
-      <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
+      <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="editUsuario(${u.id},'${u.username}','${u.rol}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id},'${u.username}')">Eliminar</button>
       </td>
