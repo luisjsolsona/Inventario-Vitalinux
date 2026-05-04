@@ -141,14 +141,13 @@
     .history-arrow { color: var(--text3); }
     .history-new { color: var(--green); font-weight: 600; }
 
-    /* ── Users table ── */
-    .users-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .users-table th, .users-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .users-table th:nth-child(1), .users-table td:nth-child(1) { width: 40%; }
-    .users-table th:nth-child(2), .users-table td:nth-child(2) { width: 22%; }
-    .users-table th:nth-child(3), .users-table td:nth-child(3) { width: 38%; text-align: right; }
-    .users-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text2); background: var(--bg3); }
-    .users-table tr:last-child td { border-bottom: none; }
+    /* ── Users list ── */
+    .user-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+    .user-row:last-child { border-bottom: none; }
+    .user-row-name { flex: 1; min-width: 0; overflow: hidden; }
+    .user-row-name strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-row-role { flex-shrink: 0; }
+    .user-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
     .role-tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
     .role-admin { background: rgba(220,38,38,0.08); color: var(--danger); border: 1px solid rgba(220,38,38,0.2); }
     .role-tecnico { background: rgba(37,99,235,0.08); color: var(--accent); border: 1px solid rgba(37,99,235,0.2); }
@@ -286,10 +285,7 @@
           <button class="btn btn-primary btn-sm" id="btnGuardarUsuario" onclick="guardarUsuario()">Guardar</button>
         </div>
       </div>
-      <table class="users-table" id="usersTable">
-        <thead><tr><th>Usuario</th><th>Rol</th><th></th></tr></thead>
-        <tbody id="usersTbody"></tbody>
-      </table>
+      <div id="usersTbody"></div>
     </div>
   </div>
 </div>
@@ -599,14 +595,17 @@ async function loadUsuarios() {
   if (!r.ok) return;
   const users = await r.json();
   document.getElementById('usersTbody').innerHTML = users.map(u => `
-    <tr>
-      <td><strong>${u.username}</strong><br><span style="font-size:11px;color:var(--text3);font-weight:400">${fmtDate(u.created_at)}</span></td>
-      <td>${roleTag(u.rol)}</td>
-      <td style="text-align:right;white-space:nowrap">
+    <div class="user-row">
+      <div class="user-row-name">
+        <strong>${u.username}</strong>
+        <span style="font-size:11px;color:var(--text3)">${fmtDate(u.created_at)}</span>
+      </div>
+      <div class="user-row-role">${roleTag(u.rol)}</div>
+      <div class="user-row-actions">
         <button class="btn btn-ghost btn-sm" onclick="editUsuario(${u.id},'${u.username}','${u.rol}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id},'${u.username}')">Eliminar</button>
-      </td>
-    </tr>`).join('');
+      </div>
+    </div>`).join('');
 }
 
 function showFormUsuario(id, username, rol) {
