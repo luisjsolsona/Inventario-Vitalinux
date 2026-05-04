@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDB } = require('../db');
-const { SECRET } = require('../middleware/auth');
+const { SECRET, authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -36,6 +36,10 @@ router.post('/login', (req, res) => {
   const token = jwt.sign({ id: user.id, username: user.username, rol: user.rol }, SECRET, { expiresIn: '8h' });
   res.cookie('token', token, { httpOnly: true, sameSite: 'strict', maxAge: 8 * 3600 * 1000 });
   res.json({ ok: true, rol: user.rol });
+});
+
+router.get('/me', authMiddleware, (req, res) => {
+  res.json({ username: req.user.username, rol: req.user.rol });
 });
 
 router.post('/logout', (req, res) => {

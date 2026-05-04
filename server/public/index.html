@@ -371,18 +371,15 @@ let editUserId = null;
     allData = await r.json();
   } catch { location.href = '/login.html'; return; }
 
-  const cookieToken = document.cookie.split(';').find(c => c.trim().startsWith('token='));
-  if (cookieToken) {
-    try {
-      const payload = JSON.parse(atob(cookieToken.split('=')[1].split('.')[1]));
-      document.getElementById('badgeUser').textContent = payload.username;
-      isAdmin = payload.rol === 'admin';
-      if (isAdmin) {
-        document.getElementById('btnUsuarios').style.display = '';
-        document.getElementById('btnConfig').style.display = '';
-      }
-    } catch {}
-  }
+  try {
+    const me = await (await fetch('/auth/me', { credentials: 'include' })).json();
+    document.getElementById('badgeUser').textContent = me.username;
+    isAdmin = me.rol === 'admin';
+    if (isAdmin) {
+      document.getElementById('btnUsuarios').style.display = '';
+      document.getElementById('btnConfig').style.display = '';
+    }
+  } catch {}
 
   await loadStats();
   render();
