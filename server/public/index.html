@@ -143,11 +143,10 @@
 
     /* ── Users table ── */
     .users-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .users-table th, .users-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .users-table th:nth-child(1), .users-table td:nth-child(1) { width: 30%; }
-    .users-table th:nth-child(2), .users-table td:nth-child(2) { width: 20%; }
-    .users-table th:nth-child(3), .users-table td:nth-child(3) { width: 26%; }
-    .users-table th:nth-child(4), .users-table td:nth-child(4) { width: 24%; }
+    .users-table th, .users-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .users-table th:nth-child(1), .users-table td:nth-child(1) { width: 40%; }
+    .users-table th:nth-child(2), .users-table td:nth-child(2) { width: 22%; }
+    .users-table th:nth-child(3), .users-table td:nth-child(3) { width: 38%; text-align: right; }
     .users-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text2); background: var(--bg3); }
     .users-table tr:last-child td { border-bottom: none; }
     .role-tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
@@ -287,12 +286,10 @@
           <button class="btn btn-primary btn-sm" id="btnGuardarUsuario" onclick="guardarUsuario()">Guardar</button>
         </div>
       </div>
-      <div style="overflow-x:auto">
-        <table class="users-table" id="usersTable">
-          <thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
-          <tbody id="usersTbody"></tbody>
-        </table>
-      </div>
+      <table class="users-table" id="usersTable">
+        <thead><tr><th>Usuario</th><th>Rol</th><th></th></tr></thead>
+        <tbody id="usersTbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -603,9 +600,8 @@ async function loadUsuarios() {
   const users = await r.json();
   document.getElementById('usersTbody').innerHTML = users.map(u => `
     <tr>
-      <td><strong>${u.username}</strong></td>
+      <td><strong>${u.username}</strong><br><span style="font-size:11px;color:var(--text3);font-weight:400">${fmtDate(u.created_at)}</span></td>
       <td>${roleTag(u.rol)}</td>
-      <td style="color:var(--text2);font-size:12px">${fmtDate(u.created_at)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="editUsuario(${u.id},'${u.username}','${u.rol}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id},'${u.username}')">Eliminar</button>
