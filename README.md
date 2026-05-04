@@ -13,10 +13,10 @@ La plataforma permite a los técnicos de sistemas llevar un inventario actualiza
 ![Cliente Inventario](inventario-vitalinux-4.jpg)
 
 ### Aviso de cambios en HW
-![Aviso cambios HW](inventario-vitalinux-3.jpg)
+![Aviso cambios HW](inventario-vitalinux-2.jpg)
 
 ### Historico de cambios en HW
-![Historico cambios HW](inventario-vitalinux-2.jpg)
+![Historico cambios HW](inventario-vitalinux-3.jpg)
 
 
 **Para el técnico / administrador:**
