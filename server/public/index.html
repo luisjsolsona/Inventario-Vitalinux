@@ -282,10 +282,12 @@
           <button class="btn btn-primary btn-sm" id="btnGuardarUsuario" onclick="guardarUsuario()">Guardar</button>
         </div>
       </div>
-      <table class="users-table" id="usersTable">
-        <thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
-        <tbody id="usersTbody"></tbody>
-      </table>
+      <div style="overflow-x:auto">
+        <table class="users-table" id="usersTable">
+          <thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
+          <tbody id="usersTbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -337,7 +339,7 @@
       <div class="form-group" style="margin-bottom:14px">
         <label>Contraseña de aplicación Google</label>
         <input type="password" id="cfgEmailPass" placeholder="xxxx xxxx xxxx xxxx">
-        <span class="form-hint">Cuenta Google → Seguridad → Contraseñas de aplicaciones</span>
+        <span class="form-hint">Contraseña de aplicación — <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:var(--accent)">Obtenerla aquí ↗</a></span>
       </div>
       <div class="form-group" style="margin-bottom:14px">
         <label>Email destino de notificaciones</label>
