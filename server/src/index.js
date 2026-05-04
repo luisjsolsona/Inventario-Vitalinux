@@ -7,6 +7,7 @@ const authRouter = require('./routes/auth');
 const equiposRouter = require('./routes/equipos');
 const apiRouter = require('./routes/api');
 const usuariosRouter = require('./routes/usuarios');
+const configRouter   = require('./routes/config');
 
 const app = express();
 const PORT = process.env.PORT || 3900;
@@ -40,6 +41,7 @@ app.use('/auth', authRouter);
 app.use('/equipos', equiposRouter);
 app.use('/api', apiRouter);
 app.use('/usuarios', usuariosRouter);
+app.use('/config',   configRouter);
 
 // ── Arranque ──────────────────────────────────────────────────
 initDB();

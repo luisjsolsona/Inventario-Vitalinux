@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDB } = require('../db');
 const { apiTokenMiddleware } = require('../middleware/auth');
+const { sendChangeNotification } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -34,12 +35,14 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
 
   if (existing) {
     // Registrar cambios en historial
+    const cambios = [];
     for (const campo of campos) {
       const vAnt = String(existing[campo] ?? '');
       const vNew = String(d[campo] ?? '');
       if (vAnt !== vNew) {
         db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
           .run(d.cid, campo, vAnt, vNew);
+        cambios.push({ campo, valor_ant: vAnt, valor_new: vNew });
       }
     }
     // Actualizar
@@ -55,6 +58,9 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
       d.ip, d.mac_ethernet, d.mac_wifi, d.grafica, d.dualizado, d.secure_boot,
       d.ip_publica, d.cid
     );
+    if (cambios.length > 0) {
+      sendChangeNotification(d, cambios).catch(e => console.error('[Email]', e.message));
+    }
     return res.json({ ok: true, accion: 'actualizado' });
   } else {
     // Insertar nuevo

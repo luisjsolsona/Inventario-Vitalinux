@@ -59,6 +59,11 @@ function initDB() {
       fecha      TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS config (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_historial_cid   ON historial(cid);
     CREATE INDEX IF NOT EXISTS idx_historial_fecha  ON historial(fecha DESC);
     CREATE INDEX IF NOT EXISTS idx_equipos_updated  ON equipos(updated_at DESC);

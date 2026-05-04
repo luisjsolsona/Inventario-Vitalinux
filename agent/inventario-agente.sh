@@ -85,14 +85,18 @@ ETIQUETAS="N/A"
 _parse_migasfree_json() {
   local file="$1"
   if command -v jq &>/dev/null; then
-    jq -r '(.tags // .attributes // []) | map(tostring) | join(",")' "$file" 2>/dev/null || echo "N/A"
+    jq -r '[.tags // .attributes // [] | .[] | if type=="object" then (.name // .value // tostring) else . end] | join(",")' "$file" 2>/dev/null || echo "N/A"
   elif command -v python3 &>/dev/null; then
     python3 - "$file" 2>/dev/null <<'PYEOF'
 import json, sys
 try:
     d = json.load(open(sys.argv[1]))
     t = d.get('tags', d.get('attributes', []))
-    print(','.join(str(x) for x in t) if t else 'N/A')
+    def extract(x):
+        if isinstance(x, dict):
+            return x.get('name') or x.get('value') or str(x)
+        return str(x)
+    print(','.join(extract(x) for x in t) if t else 'N/A')
 except Exception:
     print('N/A')
 PYEOF
@@ -120,9 +124,10 @@ MEMORIA_MB=$(awk '/MemTotal/{printf "%.1f", $2/1024}' /proc/meminfo 2>/dev/null 
 # ── 11. Slots RAM ─────────────────────────────────────────────
 SLOTS_MEMORIA="N/A"
 if command -v dmidecode &>/dev/null; then
-  SLOTS_TOTAL=$(dmidecode -t memory 2>/dev/null | grep -c "Memory Device$" || echo "0")
-  SLOTS_LIBRES=$(dmidecode -t memory 2>/dev/null | grep -A5 "Memory Device$" | grep -c "No Module Installed" || echo "0")
-  SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
+  _dmi17=$(dmidecode -t 17 2>/dev/null)
+  SLOTS_TOTAL=$(echo "$_dmi17" | grep -c "^Memory Device" || echo "0")
+  SLOTS_LIBRES=$(echo "$_dmi17" | grep -c "No Module Installed" || echo "0")
+  [[ "$SLOTS_TOTAL" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
 fi
 
 # ── 12. Disco (bytes brutos, como Migasfree) ──────────────────
@@ -188,11 +193,21 @@ fi
 
 # ── 18. Dualizado ─────────────────────────────────────────────
 DUALIZADO="NO"
-if command -v lsblk &>/dev/null && lsblk -f 2>/dev/null | grep -qi 'ntfs'; then
+# Método 1: efibootmgr lista una entrada Windows
+if command -v efibootmgr &>/dev/null && efibootmgr 2>/dev/null | grep -qi "windows"; then
   DUALIZADO="SI"
 fi
-if [[ -d /sys/firmware/efi/efivars ]] && ls /sys/firmware/efi/efivars/ 2>/dev/null | grep -qi 'windows'; then
-  DUALIZADO="SI"
+# Método 2: directorio EFI/Microsoft en la partición EFI montada
+if [[ "$DUALIZADO" == "NO" ]]; then
+  for _efi in /boot/efi /efi /boot; do
+    [[ -d "$_efi/EFI/Microsoft" ]] && DUALIZADO="SI" && break
+  done
+fi
+# Método 3: partición NTFS en disco interno (no extraíble)
+if [[ "$DUALIZADO" == "NO" ]] && command -v lsblk &>/dev/null; then
+  if lsblk -lo FSTYPE,RM,TYPE 2>/dev/null | awk 'NR>1 && /ntfs|NTFS/ && $2=="0" && $3=="part"{found=1} END{exit !found}'; then
+    DUALIZADO="SI"
+  fi
 fi
 
 # ── 19. Secure Boot ───────────────────────────────────────────

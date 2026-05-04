@@ -6,7 +6,11 @@ const router = express.Router();
 
 // Listar todos
 router.get('/', authMiddleware, (req, res) => {
-  const equipos = getDB().prepare('SELECT * FROM equipos ORDER BY updated_at DESC').all();
+  const equipos = getDB().prepare(`
+    SELECT e.*,
+      (SELECT MAX(fecha) FROM historial WHERE cid = e.cid) as last_change_at
+    FROM equipos e ORDER BY e.updated_at DESC
+  `).all();
   res.json(equipos);
 });
 

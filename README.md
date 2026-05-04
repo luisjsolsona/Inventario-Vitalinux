@@ -22,11 +22,18 @@ La plataforma permite a los técnicos de sistemas llevar un inventario actualiza
 **Para el técnico / administrador:**
 - Dashboard web con búsqueda, filtros por versión y tipo de disco, y modal de detalle por equipo
 - Campo **Último inventario** en cada equipo — fecha y hora exacta en que el agente se ejecutó por última vez
-- Campos que cambiaron en el último envío resaltados en rojo, mostrando el valor anterior y el actual
+- **Equipos con cambios marcados en rojo** en el listado general — punto rojo junto al nombre si el último envío detectó algún cambio
+- Campos que cambiaron en el último envío resaltados en rojo en el detalle, mostrando el valor anterior y el actual
 - Historial de cambios agrupado por ejecución del agente
 - Exportación del inventario completo en TSV compatible con LibreOffice Calc y Excel
 - Eliminación de equipos con borrado en cascada del historial
 - Estadísticas globales: total de equipos, distribución de versiones y tipos de disco
+
+**Notificaciones por correo:**
+- El administrador configura un correo Gmail y su contraseña de aplicación desde el botón **Notificaciones** en el header
+- Cuando el agente detecta cambios en cualquier campo de hardware, el sistema envía automáticamente un correo con el detalle del equipo y los campos modificados
+- Se puede especificar un correo de destino diferente al remitente, o enviarlo al mismo
+- Botón de **enviar prueba** para verificar la configuración antes de activarla
 
 **Gestión de usuarios:**
 - Tres niveles de acceso: **admin** (gestión total), **tecnico** (lectura y exportación) y **viewer** (solo lectura)
@@ -38,12 +45,15 @@ La plataforma permite a los técnicos de sistemas llevar un inventario actualiza
 - La página de login muestra el comando de instalación con la IP del servidor ya incluida
 - Instalación en un solo comando desde el equipo cliente, sin configuración manual
 - Recogida automática de serial, modelo, CPU, RAM, slots de memoria, disco, tipo de disco, MACs ethernet y WiFi, gráfica, IP local, IP pública, Secure Boot y estado de dualizado
+- Detección fiable de **slots RAM** usando `dmidecode -t 17` con conteo directo (sin falsos positivos por entradas virtuales del BIOS)
+- Detección fiable de **dualizado**: comprueba efibootmgr, directorio EFI/Microsoft y particiones NTFS en discos internos
+- **Etiquetas Migasfree** con soporte de estructura de objetos (id/name) además de strings planos
 - Integración nativa con Migasfree — usa `migasfree-cid` como identificador y recoge etiquetas del cliente
 - Fallback automático al hash de MAC si Migasfree no está disponible
 
 ## Implementación técnica
 
-La aplicación usa un diseño cliente-servidor: agente Bash en los equipos Vitalinux, servidor Express con base de datos SQLite y frontend HTML/CSS/JS vanilla con tema claro. La autenticación se gestiona con JWT almacenado en cookie httpOnly con flag sameSite. El token de los agentes se compara con comparación timing-safe para evitar ataques de temporización. El login web incluye rate limiting de 5 intentos por IP cada 10 minutos. El sistema corre en Docker y es compatible con CasaOS, Linux, Windows y macOS.
+La aplicación usa un diseño cliente-servidor: agente Bash en los equipos Vitalinux, servidor Express con base de datos SQLite y frontend HTML/CSS/JS vanilla con tema claro. La autenticación se gestiona con JWT almacenado en cookie httpOnly con flag sameSite. El token de los agentes se compara con comparación timing-safe para evitar ataques de temporización. El login web incluye rate limiting de 5 intentos por IP cada 10 minutos. Las notificaciones se envían mediante **nodemailer** vía SMTP de Gmail con contraseña de aplicación. La configuración de correo se almacena en la tabla `config` de la propia base de datos. El sistema corre en Docker y es compatible con CasaOS, Linux, Windows y macOS.
 
 ## Quick Start
 
