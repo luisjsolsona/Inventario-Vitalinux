@@ -120,7 +120,6 @@ for dev in /sys/block/*/queue/rotational; do
   [[ "$rot" == "0" ]] && HAS_SSD=true
   [[ "$rot" == "1" ]] && HAS_HDD=true
 done
-ls /sys/block/nvme* &>/dev/null 2>&1 && HAS_NVME=true
 if $HAS_NVME; then TIPO_DISCO="nvme"
 elif $HAS_SSD && $HAS_HDD; then TIPO_DISCO="ssd+hdd"
 elif $HAS_SSD; then TIPO_DISCO="ssd"
