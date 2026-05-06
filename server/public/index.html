@@ -175,9 +175,9 @@
     .toast.err { border-color: rgba(220,38,38,0.4); color: var(--danger); }
 
     /* ── Cambios en listado ── */
-    .row-changed td { background: rgba(220,38,38,0.03); }
-    .row-changed:hover td { background: rgba(220,38,38,0.08) !important; cursor: pointer; }
-    .change-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); margin-right: 5px; vertical-align: middle; margin-bottom: 1px; flex-shrink: 0; }
+    .row-changed td { background: rgba(180,83,9,0.04); }
+    .row-changed:hover td { background: rgba(180,83,9,0.09) !important; cursor: pointer; }
+    .change-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-right: 5px; vertical-align: middle; margin-bottom: 1px; flex-shrink: 0; }
 
     /* ── Config form ── */
     .toggle-wrap { display: flex; align-items: center; gap: 10px; }
@@ -202,6 +202,7 @@
       <button class="btn btn-ghost" onclick="openMiPassword()">Mi contraseña</button>
       <button class="btn btn-ghost" id="btnUsuarios" style="display:none" onclick="openUsuarios()">Usuarios</button>
       <button class="btn btn-ghost" id="btnConfig" style="display:none" onclick="openConfig()">Notificaciones</button>
+      <button class="btn btn-ghost" onclick="openImport()">Importar TSV</button>
       <button class="btn btn-ghost" onclick="exportTSV()">Exportar TSV</button>
       <button class="btn btn-ghost" onclick="logout()">Salir</button>
     </div>
@@ -210,7 +211,8 @@
   <main>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Total equipos</div><div class="stat-val" id="sTotal">—</div></div>
-      <div class="stat-card"><div class="stat-label">Estado OK</div><div class="stat-val" id="sActivos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Estado OK</div><div class="stat-val" id="sActivos" style="color:var(--green)">—</div></div>
+      <div class="stat-card"><div class="stat-label">Revisar</div><div class="stat-val" id="sRevisar" style="color:var(--warn)">—</div></div>
       <div class="stat-card"><div class="stat-label">Última sync</div><div class="stat-val" style="font-size:15px;line-height:1.4" id="sUlt">—</div><div class="stat-sub" id="sUltSub"></div></div>
       <div class="stat-card"><div class="stat-label">Versiones</div><div id="sVersiones" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
       <div class="stat-card"><div class="stat-label">Tipo disco</div><div id="sDiscos" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
@@ -369,6 +371,31 @@
   </div>
 </div>
 
+<!-- MODAL IMPORTAR -->
+<div class="modal-overlay" id="modalImport" onclick="if(event.target===this)closeImport()">
+  <div class="modal" style="max-width:480px;width:480px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-subtitle">INVENTARIO</div>
+        <div class="modal-title">Importar TSV</div>
+      </div>
+      <button class="modal-close" onclick="closeImport()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">Selecciona un fichero TSV exportado desde Vitalinux o desde esta aplicación. Los equipos existentes se actualizan; los nuevos se insertan.</p>
+      <div class="form-group">
+        <label>Fichero TSV</label>
+        <input type="file" id="importFile" accept=".tsv,.txt,.csv,.log" style="padding:8px;font-size:13px">
+      </div>
+      <div id="importResult" style="margin-top:14px;font-size:13px;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeImport()">Cancelar</button>
+      <button class="btn btn-primary" onclick="doImport()">Importar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -415,6 +442,7 @@ async function loadStats() {
     const s = await r.json();
     document.getElementById('sTotal').textContent = s.total;
     document.getElementById('sActivos').textContent = s.activos;
+    document.getElementById('sRevisar').textContent = s.revisar ?? 0;
     const ult = s.ultimaActualizacion ? new Date(s.ultimaActualizacion) : null;
     document.getElementById('sUlt').textContent = ult ? ult.toLocaleDateString('es-ES') : '—';
     document.getElementById('sUltSub').textContent = ult ? ult.toLocaleTimeString('es-ES') : '';
@@ -449,9 +477,8 @@ function render() {
     return;
   }
   tbody.innerHTML = data.map(e => {
-    const hasChange = e.last_change_at && e.updated_at &&
-      Math.abs(new Date(e.updated_at.replace(' ','T')+'Z') - new Date(e.last_change_at.replace(' ','T')+'Z')) < 60000;
-    const dot = hasChange ? '<span class="change-dot" title="Cambios en último inventario"></span>' : '';
+    const hasChange = e.estado === 'REVISAR';
+    const dot = hasChange ? '<span class="change-dot" title="Hardware modificado — pendiente de revisión"></span>' : '';
     return `
     <tr class="${hasChange ? 'row-changed' : ''}" onclick="openDetail('${e.cid}')">
       <td class="cb-cell" onclick="event.stopPropagation()">
@@ -622,7 +649,8 @@ async function openDetail(cid) {
     <div class="section-title">Historial de cambios</div>
     ${histHtml}`;
 
-  let footerHtml = '';
+  const _e = e, _h = historial;
+  let footerHtml = `<button class="btn btn-ghost" onclick="printEquipo(currentCID)">🖨 Imprimir</button>`;
   if (e.estado === 'REVISAR') {
     footerHtml += `<button class="btn btn-primary" onclick="aceptarCambios('${e.cid}')">✓ Aceptar cambios</button>`;
   }
@@ -771,8 +799,94 @@ async function guardarMiPassword() {
   showToast('Contraseña actualizada', 'ok');
 }
 
-// ── Export / Auth ─────────────────────────────────────────────
-async function exportTSV() { window.location.href = '/api/export/csv'; }
+// ── Export / Import / Auth ────────────────────────────────────
+async function exportTSV() { window.location.href = '/equipos/export'; }
+
+function openImport() {
+  document.getElementById('importFile').value = '';
+  document.getElementById('importResult').style.display = 'none';
+  document.getElementById('modalImport').classList.add('open');
+}
+function closeImport() { document.getElementById('modalImport').classList.remove('open'); }
+
+async function doImport() {
+  const file = document.getElementById('importFile').files[0];
+  const res = document.getElementById('importResult');
+  if (!file) { res.style.display = 'block'; res.style.color = 'var(--danger)'; res.textContent = 'Selecciona un fichero.'; return; }
+  const tsv = await file.text();
+  const r = await fetch('/equipos/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ tsv })
+  });
+  const d = await r.json();
+  res.style.display = 'block';
+  if (r.ok) {
+    res.style.color = 'var(--green)';
+    res.textContent = `Importación completada — ${d.imported} nuevos, ${d.updated} actualizados${d.errors ? `, ${d.errors} errores` : ''}.`;
+    await loadData();
+  } else {
+    res.style.color = 'var(--danger)';
+    res.textContent = d.error || 'Error al importar.';
+  }
+}
+
+// ── Imprimir detalle equipo ───────────────────────────────────
+async function printEquipo(cid) {
+  const r = await fetch(`/equipos/${cid}`, { credentials: 'include' });
+  if (!r.ok) return;
+  const { equipo: e, historial } = await r.json();
+  const fields = [
+    ['CID', e.cid], ['Estado', e.estado], ['Versión', e.version], ['Arquitectura', e.arch],
+    ['SN Placa', e.serial], ['Modelo', e.modelo], ['CPU', e.cpu],
+    ['RAM (MB)', e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'],
+    ['Slots RAM', e.slots_memoria], ['Disco', e.disco_gb ? fmtBytes(e.disco_gb) : '—'],
+    ['Tipo disco', e.tipo_disco], ['IP Local', e.ip], ['IP Pública', e.ip_publica],
+    ['MAC Ethernet', e.mac_ethernet], ['MAC WiFi', e.mac_wifi], ['Gráfica', e.grafica],
+    ['Dualizado', e.dualizado], ['Secure Boot', e.secure_boot], ['Etiquetas', e.etiquetas],
+    ['Último inventario', fmtDate(e.updated_at)],
+  ];
+  let histRows = '';
+  if (historial.length) {
+    let prevT = null;
+    for (const h of historial) {
+      const t = new Date(h.fecha).getTime();
+      if (prevT === null || prevT - t >= 60000)
+        histRows += `<tr style="background:#f8fafc"><td colspan="3" style="font-weight:700;color:#64748b;font-size:9px;padding:5px 8px">${fmtDate(h.fecha)}</td></tr>`;
+      prevT = t;
+      histRows += `<tr><td>${h.campo}</td><td style="text-decoration:line-through;color:#dc2626">${h.valor_ant||'∅'}</td><td style="color:#16a34a;font-weight:600">${h.valor_new||'∅'}</td></tr>`;
+    }
+  }
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>${e.name||e.cid} — Inventario Vitalinux</title>
+<style>
+@page{size:A4;margin:14mm}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b}
+h1{font-size:15px;font-weight:700;margin-bottom:3px}
+.sub{color:#64748b;font-size:9.5px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px}
+.cell{border:1px solid #e2e8f0;border-radius:3px;padding:5px 7px}
+.key{font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.val{font-size:10.5px;margin-top:2px;word-break:break-all}
+h2{font-size:11px;font-weight:700;border-bottom:1px solid #e2e8f0;padding-bottom:3px;margin-bottom:7px}
+table{width:100%;border-collapse:collapse;font-size:9.5px}
+th{background:#f1f5f9;padding:4px 7px;text-align:left;font-weight:700;border:1px solid #e2e8f0;font-size:8.5px;text-transform:uppercase}
+td{padding:3px 7px;border:1px solid #e2e8f0;vertical-align:top}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<h1>${e.name||'Sin nombre'} <span style="font-weight:400;color:#64748b">· ${e.cid}</span></h1>
+<div class="sub">Inventario Vitalinux · ${new Date().toLocaleString('es-ES')}</div>
+<div class="grid">${fields.map(([k,v])=>`<div class="cell"><div class="key">${k}</div><div class="val">${v||'—'}</div></div>`).join('')}</div>
+<h2>Historial de cambios</h2>
+${historial.length?`<table><thead><tr><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead><tbody>${histRows}</tbody></table>`:'<div style="color:#94a3b8">Sin cambios registrados</div>'}
+<script>window.onload=()=>window.print()<\/script>
+</body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
 async function logout() {
   await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
   location.href = '/login.html';
@@ -830,7 +944,7 @@ async function testEmail() {
   else { errEl.textContent = d.error; errEl.style.display = 'block'; }
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeUsuarios(); closeMiPassword(); closeConfig(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeUsuarios(); closeMiPassword(); closeConfig(); closeImport(); } });
 </script>
 </body>
 </html>
