@@ -236,7 +236,8 @@
     <div id="bulkBar" class="bulk-bar">
       <span id="bulkCount" style="font-size:13px;color:var(--accent);font-weight:600"></span>
       <button class="btn btn-primary btn-sm" onclick="aceptarSeleccionados()">✓ Aceptar seleccionados</button>
-      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕ Deseleccionar</button>
+      <button id="bulkDelete" class="btn btn-danger btn-sm" style="display:none" onclick="borrarSeleccionados()">✕ Borrar seleccionados</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Deseleccionar</button>
     </div>
 
     <div class="table-wrap">
@@ -462,7 +463,7 @@ function render() {
   let data = allData.filter(e => {
     if (fEstado && e.estado !== fEstado) return false;
     if (q) {
-      const h = [e.name, e.ip, e.cpu, e.modelo, e.mac_ethernet, e.mac_wifi, e.cid, e.etiquetas, e.tipo_disco].join(' ').toLowerCase();
+      const h = Object.values(e).filter(v => v != null).join(' ').toLowerCase();
       if (!h.includes(q)) return false;
     }
     return true;
@@ -531,9 +532,24 @@ function updateBulkBar() {
   if (n > 0) {
     bar.classList.add('visible');
     document.getElementById('bulkCount').textContent = `${n} equipo${n !== 1 ? 's' : ''} seleccionado${n !== 1 ? 's' : ''}`;
+    document.getElementById('bulkDelete').style.display = isAdmin ? '' : 'none';
   } else {
     bar.classList.remove('visible');
   }
+}
+
+async function borrarSeleccionados() {
+  const cids = [...selectedCIDs];
+  if (!cids.length) return;
+  if (!confirm(`¿Eliminar ${cids.length} equipo${cids.length !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
+  let ok = 0, fail = 0;
+  for (const cid of cids) {
+    const r = await fetch(`/equipos/${cid}`, { method: 'DELETE', credentials: 'include' });
+    if (r.ok) ok++; else fail++;
+  }
+  clearSelection();
+  await loadData();
+  showToast(`${ok} equipo${ok !== 1 ? 's' : ''} eliminado${ok !== 1 ? 's' : ''}${fail ? ` · ${fail} error${fail !== 1 ? 'es' : ''}` : ''}`, fail ? 'err' : 'ok');
 }
 
 async function aceptarSeleccionados() {
@@ -584,7 +600,7 @@ async function openDetail(cid) {
   for (const h of historial) { if (!lastChange[h.campo]) lastChange[h.campo] = h; }
 
   const lastRunFields = new Set();
-  if (historial.length) {
+  if (historial.length && e.estado === 'REVISAR') {
     const tRef = new Date(historial[0].fecha).getTime();
     for (const h of historial) {
       if (tRef - new Date(h.fecha).getTime() < 60000) lastRunFields.add(h.campo);
