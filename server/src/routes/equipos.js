@@ -45,19 +45,40 @@ router.post('/import', authMiddleware, (req, res) => {
   const lines = tsv.split('\n').filter(l => l.trim());
   if (lines.length < 2) return res.status(400).json({ error: 'El fichero no contiene datos' });
 
-  const headers = lines[0].split('\t').map(h => h.trim());
+  // Normaliza cabeceras: mayúsculas, sin espacios extra, todos los guiones → hyphen ASCII
+  // Necesario porque SheetJS/LibreOffice pueden cambiar el en-dash (–) por guion normal (-)
+  const normHdr = h => h.trim().toUpperCase()
+    .replace(/[‐-―−﹘﹣－]/g, '-')
+    .replace(/\s+/g, ' ');
 
-  const headerMap = {
+  const RAW_MAP = {
     'CID': 'cid', 'ESTADO': 'estado', 'VERSION': 'version', 'ARCH SO-HW': 'arch',
-    'NAME': 'name', 'SERIAL': 'serial', 'ÚLTIMA ACTUALIZACIÓN': 'ultima_act',
-    'ETIQUETAS': 'etiquetas', 'CPU': 'cpu', 'MEMORIA – MB': 'memoria_mb',
+    'NAME': 'name', 'SERIAL': 'serial',
+    'ULTIMA ACT': 'ultima_act', 'ÚLTIMA ACTUALIZACIÓN': 'ultima_act',
+    'ETIQUETAS': 'etiquetas', 'CPU': 'cpu',
+    'MEMORIA - MB': 'memoria_mb', 'MEMORIA MB': 'memoria_mb',
     'SLOTS MEMORIA': 'slots_memoria', 'SLOTS MEMORIA TOTAL(LIBRES)': 'slots_memoria',
-    'DISCO – GB': 'disco_gb', 'TIPO DE DISCO': 'tipo_disco', 'TIPO DISCO': 'tipo_disco',
+    'DISCO - GB': 'disco_gb', 'DISCO GB': 'disco_gb',
+    'TIPO DE DISCO': 'tipo_disco', 'TIPO DISCO': 'tipo_disco',
     'MODELO': 'modelo', 'IP': 'ip', 'DIRECCIONES MAC': 'mac_ethernet',
     'WIFI MAC': 'mac_wifi', 'GRAFICA': 'grafica', 'DUALIZADO': 'dualizado',
     'SECURE BOOT': 'secure_boot', 'IP PUBLICA': 'ip_publica'
   };
+  // Construir mapa con claves normalizadas (cubre variantes con en-dash, espacios, etc.)
+  const headerMap = {};
+  for (const [k, v] of Object.entries(RAW_MAP)) headerMap[normHdr(k)] = v;
 
+  // Comparación de valores: campos numéricos se comparan como número para evitar "16384" vs "16384.0"
+  const NUM_FIELDS = new Set(['memoria_mb']);
+  const cmpVal = (campo, v) => {
+    if (NUM_FIELDS.has(campo)) {
+      const n = parseFloat(v);
+      return isNaN(n) ? String(v ?? '') : String(n);
+    }
+    return String(v ?? '');
+  };
+
+  const headers = lines[0].split('\t').map(h => h.trim());
   const db = getDB();
   let imported = 0, updated = 0, errors = 0;
 
@@ -65,7 +86,7 @@ router.post('/import', authMiddleware, (req, res) => {
     const cols = lines[i].split('\t');
     const row = {};
     headers.forEach((h, idx) => {
-      const field = headerMap[h];
+      const field = headerMap[normHdr(h)];
       if (field) row[field] = (cols[idx] ?? '').trim();
     });
     if (!row.cid) continue;
@@ -82,7 +103,7 @@ router.post('/import', authMiddleware, (req, res) => {
       if (existing) {
         let hwChanged = false;
         for (const f of HW_FIELDS) {
-          if (row[f] !== undefined && String(existing[f] ?? '') !== String(row[f])) {
+          if (row[f] !== undefined && cmpVal(f, existing[f]) !== cmpVal(f, row[f])) {
             hwChanged = true;
             db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
               .run(row.cid, f, existing[f] ?? '', row[f]);
