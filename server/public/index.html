@@ -886,13 +886,10 @@ async function doImport() {
 
 // ── Imprimir detalle equipo ───────────────────────────────────
 async function printEquipo(cid) {
-  // Abrir ANTES del await para que el navegador no lo bloquee como popup
-  const w = window.open('', '_blank');
-  if (!w) { showToast('Permite ventanas emergentes para imprimir', 'err'); return; }
-  w.document.write('<html><body style="font-family:sans-serif;padding:20px">Cargando…</body></html>');
   const r = await fetch(`/equipos/${cid}`, { credentials: 'include' });
-  if (!r.ok) { w.close(); return; }
+  if (!r.ok) return;
   const { equipo: e, historial } = await r.json();
+
   const fields = [
     ['CID', e.cid], ['Estado', e.estado], ['Versión', e.version], ['Arquitectura', e.arch],
     ['SN Placa', e.serial], ['Modelo', e.modelo], ['CPU', e.cpu],
@@ -903,6 +900,7 @@ async function printEquipo(cid) {
     ['Dualizado', e.dualizado], ['Secure Boot', e.secure_boot], ['Etiquetas', e.etiquetas],
     ['Último inventario', fmtDate(e.updated_at)],
   ];
+
   let histRows = '';
   if (historial.length) {
     let prevT = null;
@@ -914,34 +912,49 @@ async function printEquipo(cid) {
       histRows += `<tr><td>${h.campo}</td><td style="text-decoration:line-through;color:#dc2626">${h.valor_ant||'∅'}</td><td style="color:#16a34a;font-weight:600">${h.valor_new||'∅'}</td></tr>`;
     }
   }
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>${e.name||e.cid} — Inventario Vitalinux</title>
-<style>
-@page{size:A4;margin:14mm}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,sans-serif;font-size:11px;color:#1e293b}
-h1{font-size:15px;font-weight:700;margin-bottom:3px}
-.sub{color:#64748b;font-size:9.5px;margin-bottom:12px}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px}
-.cell{border:1px solid #e2e8f0;border-radius:3px;padding:5px 7px}
-.key{font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
-.val{font-size:10.5px;margin-top:2px;word-break:break-all}
-h2{font-size:11px;font-weight:700;border-bottom:1px solid #e2e8f0;padding-bottom:3px;margin-bottom:7px}
-table{width:100%;border-collapse:collapse;font-size:9.5px}
-th{background:#f1f5f9;padding:4px 7px;text-align:left;font-weight:700;border:1px solid #e2e8f0;font-size:8.5px;text-transform:uppercase}
-td{padding:3px 7px;border:1px solid #e2e8f0;vertical-align:top}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<h1>${e.name||'Sin nombre'} <span style="font-weight:400;color:#64748b">· ${e.cid}</span></h1>
-<div class="sub">Inventario Vitalinux · ${new Date().toLocaleString('es-ES')}</div>
-<div class="grid">${fields.map(([k,v])=>`<div class="cell"><div class="key">${k}</div><div class="val">${v||'—'}</div></div>`).join('')}</div>
-<h2>Historial de cambios</h2>
-${historial.length?`<table><thead><tr><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead><tbody>${histRows}</tbody></table>`:'<div style="color:#94a3b8">Sin cambios registrados</div>'}
-<script>window.onload=()=>{ window.print(); window.close(); }<\/script>
-</body></html>`;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+
+  // Inyectar en la página actual y usar window.print() — evita popup blocker por completo
+  const sty = document.createElement('style');
+  sty.id = 'iv-print-sty';
+  sty.textContent = `
+    @media print {
+      body > *:not(#iv-print) { display: none !important; }
+      #iv-print { display: block !important; }
+      @page { size: A4; margin: 14mm; }
+    }
+    #iv-print { display: none; font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; }
+    #iv-print * { box-sizing: border-box; }
+    #iv-print h1 { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+    #iv-print .sub { color: #64748b; font-size: 9.5px; margin-bottom: 12px; }
+    #iv-print .grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; margin-bottom: 14px; }
+    #iv-print .cell { border: 1px solid #e2e8f0; border-radius: 3px; padding: 5px 7px; }
+    #iv-print .key { font-size: 8px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+    #iv-print .val { font-size: 10.5px; margin-top: 2px; word-break: break-all; }
+    #iv-print h2 { font-size: 11px; font-weight: 700; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 7px; }
+    #iv-print table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+    #iv-print th { background: #f1f5f9; padding: 4px 7px; text-align: left; font-weight: 700; border: 1px solid #e2e8f0; font-size: 8.5px; text-transform: uppercase; }
+    #iv-print td { padding: 3px 7px; border: 1px solid #e2e8f0; vertical-align: top; }
+  `;
+  document.head.appendChild(sty);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'iv-print';
+  overlay.innerHTML = `
+    <h1>${e.name||'Sin nombre'} <span style="font-weight:400;color:#64748b">· ${e.cid}</span></h1>
+    <div class="sub">Inventario Vitalinux · ${new Date().toLocaleString('es-ES')}</div>
+    <div class="grid">${fields.map(([k,v]) => `<div class="cell"><div class="key">${k}</div><div class="val">${v||'—'}</div></div>`).join('')}</div>
+    <h2>Historial de cambios</h2>
+    ${historial.length
+      ? `<table><thead><tr><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead><tbody>${histRows}</tbody></table>`
+      : '<div style="color:#94a3b8">Sin cambios registrados</div>'}
+  `;
+  document.body.appendChild(overlay);
+
+  closeModal();
+  window.print();
+
+  overlay.remove();
+  sty.remove();
 }
 async function logout() {
   await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
