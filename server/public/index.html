@@ -933,7 +933,7 @@ td{padding:3px 7px;border:1px solid #e2e8f0;vertical-align:top}
 <div class="grid">${fields.map(([k,v])=>`<div class="cell"><div class="key">${k}</div><div class="val">${v||'—'}</div></div>`).join('')}</div>
 <h2>Historial de cambios</h2>
 ${historial.length?`<table><thead><tr><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead><tbody>${histRows}</tbody></table>`:'<div style="color:#94a3b8">Sin cambios registrados</div>'}
-<script>window.onload=()=>window.print()<\/script>
+<script>window.onload=()=>{ window.print(); window.close(); }<\/script>
 </body></html>`;
   const w = window.open('', '_blank');
   w.document.write(html);
