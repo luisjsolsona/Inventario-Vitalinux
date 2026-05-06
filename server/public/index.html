@@ -886,8 +886,12 @@ async function doImport() {
 
 // ── Imprimir detalle equipo ───────────────────────────────────
 async function printEquipo(cid) {
+  // Abrir ANTES del await para que el navegador no lo bloquee como popup
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Permite ventanas emergentes para imprimir', 'err'); return; }
+  w.document.write('<html><body style="font-family:sans-serif;padding:20px">Cargando…</body></html>');
   const r = await fetch(`/equipos/${cid}`, { credentials: 'include' });
-  if (!r.ok) return;
+  if (!r.ok) { w.close(); return; }
   const { equipo: e, historial } = await r.json();
   const fields = [
     ['CID', e.cid], ['Estado', e.estado], ['Versión', e.version], ['Arquitectura', e.arch],
@@ -935,7 +939,7 @@ td{padding:3px 7px;border:1px solid #e2e8f0;vertical-align:top}
 ${historial.length?`<table><thead><tr><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead><tbody>${histRows}</tbody></table>`:'<div style="color:#94a3b8">Sin cambios registrados</div>'}
 <script>window.onload=()=>{ window.print(); window.close(); }<\/script>
 </body></html>`;
-  const w = window.open('', '_blank');
+  w.document.open();
   w.document.write(html);
   w.document.close();
 }
