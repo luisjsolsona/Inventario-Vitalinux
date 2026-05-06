@@ -109,7 +109,7 @@
     /* ── Modal base ── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(2px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
-    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 680px; max-height: 90vh; overflow-x: hidden; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: slideUp 0.2s; }
+    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; width: 80vw; max-width: 1400px; max-height: 90vh; overflow-x: hidden; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: slideUp 0.2s; }
     @keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; position: sticky; top: 0; background: var(--bg2); z-index: 1; }
     .modal-title { font-size: 17px; font-weight: 700; }
@@ -120,7 +120,7 @@
     .modal-footer { padding: 14px 24px; border-top: 1px solid var(--border); background: var(--bg3); display: flex; justify-content: flex-end; gap: 8px; border-radius: 0 0 12px 12px; }
 
     /* ── Detail grid ── */
-    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
     .detail-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
     .detail-key { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: var(--text2); text-transform: uppercase; margin-bottom: 4px; }
     .detail-val { font-size: 13px; color: var(--text); word-break: break-all; }
@@ -182,6 +182,15 @@
     /* ── Config form ── */
     .toggle-wrap { display: flex; align-items: center; gap: 10px; }
     .toggle-wrap input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
+    /* ── Multiselect ── */
+    .bulk-bar { display: none; align-items: center; gap: 10px; background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.2); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 10px; }
+    .bulk-bar.visible { display: flex; }
+    td.cb-cell { width: 36px; padding: 6px 10px; }
+    th.cb-cell { width: 36px; padding: 6px 10px; }
+    input.row-check { cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px; }
+    tr.selected td { background: rgba(37,99,235,0.05); }
+    tr.selected:hover td { background: rgba(37,99,235,0.1) !important; }
   </style>
 </head>
 <body>
@@ -217,20 +226,21 @@
         <option value="OK">OK</option>
         <option value="REVISAR">REVISAR</option>
       </select>
-      <select id="filterDisco">
-        <option value="">Todos los discos</option>
-        <option value="ssd">SSD</option>
-        <option value="hdd">HDD</option>
-        <option value="nvme">NVMe</option>
-      </select>
       <button class="btn btn-ghost" onclick="loadData()">↻ Actualizar</button>
       <span id="countBadge" style="font-size:12px;color:var(--text3)"></span>
+    </div>
+
+    <div id="bulkBar" class="bulk-bar">
+      <span id="bulkCount" style="font-size:13px;color:var(--accent);font-weight:600"></span>
+      <button class="btn btn-primary btn-sm" onclick="aceptarSeleccionados()">✓ Aceptar seleccionados</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕ Deseleccionar</button>
     </div>
 
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            <th class="cb-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="cursor:pointer;accent-color:var(--accent);width:15px;height:15px"></th>
             <th onclick="sortBy('cid')">CID</th>
             <th onclick="sortBy('estado')">Estado</th>
             <th onclick="sortBy('name')">Nombre</th>
@@ -364,6 +374,7 @@
 <script>
 let allData = [], sortField = 'updated_at', sortDir = -1, currentCID = null, isAdmin = false;
 let editUserId = null;
+let selectedCIDs = new Set();
 
 // ── Init ──────────────────────────────────────────────────────
 (async () => {
@@ -387,7 +398,6 @@ let editUserId = null;
   render();
   document.getElementById('searchInput').addEventListener('input', render);
   document.getElementById('filterEstado').addEventListener('change', render);
-  document.getElementById('filterDisco').addEventListener('change', render);
 })();
 
 async function loadData() {
@@ -417,14 +427,13 @@ async function loadStats() {
 
 // ── Render tabla ──────────────────────────────────────────────
 function render() {
+  clearSelection();
   const q = document.getElementById('searchInput').value.toLowerCase();
   const fEstado = document.getElementById('filterEstado').value;
-  const fDisco = document.getElementById('filterDisco').value;
   let data = allData.filter(e => {
     if (fEstado && e.estado !== fEstado) return false;
-    if (fDisco && (e.tipo_disco || '').toLowerCase() !== fDisco) return false;
     if (q) {
-      const h = [e.name, e.ip, e.cpu, e.modelo, e.mac_ethernet, e.mac_wifi, e.cid, e.etiquetas].join(' ').toLowerCase();
+      const h = [e.name, e.ip, e.cpu, e.modelo, e.mac_ethernet, e.mac_wifi, e.cid, e.etiquetas, e.tipo_disco].join(' ').toLowerCase();
       if (!h.includes(q)) return false;
     }
     return true;
@@ -436,7 +445,7 @@ function render() {
   document.getElementById('countBadge').textContent = `${data.length} equipo${data.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('tbody');
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="12" class="no-data">No hay equipos que coincidan</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" class="no-data">No hay equipos que coincidan</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(e => {
@@ -445,6 +454,9 @@ function render() {
     const dot = hasChange ? '<span class="change-dot" title="Cambios en último inventario"></span>' : '';
     return `
     <tr class="${hasChange ? 'row-changed' : ''}" onclick="openDetail('${e.cid}')">
+      <td class="cb-cell" onclick="event.stopPropagation()">
+        <input type="checkbox" class="row-check" value="${e.cid}" onchange="toggleSelect(this)">
+      </td>
       <td><span class="tag-cid">${e.cid}</span></td>
       <td><span class="pill pill-${(e.estado||'').toLowerCase()}">${e.estado || 'N/A'}</span></td>
       <td><span class="tag-name">${dot}${e.name || 'N/A'}</span></td>
@@ -459,6 +471,54 @@ function render() {
       <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail('${e.cid}')">Ver →</button></td>
     </tr>`;
   }).join('');
+}
+
+// ── Multiselect ───────────────────────────────────────────────
+function toggleSelect(cb) {
+  if (cb.checked) selectedCIDs.add(cb.value);
+  else selectedCIDs.delete(cb.value);
+  updateBulkBar();
+}
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => {
+    c.checked = cb.checked;
+    if (cb.checked) selectedCIDs.add(c.value);
+    else selectedCIDs.delete(c.value);
+  });
+  updateBulkBar();
+}
+
+function clearSelection() {
+  selectedCIDs.clear();
+  document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+  const sa = document.getElementById('selectAll');
+  if (sa) sa.checked = false;
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const n = selectedCIDs.size;
+  const bar = document.getElementById('bulkBar');
+  if (n > 0) {
+    bar.classList.add('visible');
+    document.getElementById('bulkCount').textContent = `${n} equipo${n !== 1 ? 's' : ''} seleccionado${n !== 1 ? 's' : ''}`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+async function aceptarSeleccionados() {
+  const cids = [...selectedCIDs];
+  if (!cids.length) return;
+  let ok = 0, fail = 0;
+  for (const cid of cids) {
+    const r = await fetch(`/equipos/${cid}/aceptar`, { method: 'POST', credentials: 'include' });
+    if (r.ok) ok++; else fail++;
+  }
+  clearSelection();
+  await loadData();
+  showToast(`${ok} equipo${ok !== 1 ? 's' : ''} aceptado${ok !== 1 ? 's' : ''}${fail ? ` · ${fail} error${fail !== 1 ? 'es' : ''}` : ''}`, fail ? 'err' : 'ok');
 }
 
 function sortBy(field) {
@@ -530,7 +590,7 @@ async function openDetail(cid) {
     const changed = campo && lastRunFields.has(campo);
     const prev = changed && lastChange[campo] ? lastChange[campo].valor_ant : null;
     return `<div class="detail-item${changed ? ' changed' : ''}">
-      <div class="detail-key">${k}${changed ? '<span class="change-badge">CAMBIÓ</span>' : ''}</div>
+      <div class="detail-key">${k}${changed ? '<span class="change-badge">MODIFICADO</span>' : ''}</div>
       <div class="detail-val${accent ? ' accent' : ''}">${v || '—'}</div>
       ${changed ? `<div class="change-prev">Antes: <span>${prev || '∅'}</span></div>` : ''}
     </div>`;
