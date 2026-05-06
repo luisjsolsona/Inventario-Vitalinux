@@ -7,6 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.mini.min.js"></script>
   <style>
     :root {
       --bg: #f8fafc;
@@ -202,7 +203,7 @@
       <button class="btn btn-ghost" onclick="openMiPassword()">Mi contraseña</button>
       <button class="btn btn-ghost" id="btnUsuarios" style="display:none" onclick="openUsuarios()">Usuarios</button>
       <button class="btn btn-ghost" id="btnConfig" style="display:none" onclick="openConfig()">Notificaciones</button>
-      <button class="btn btn-ghost" onclick="openImport()">Importar TSV</button>
+      <button class="btn btn-ghost" onclick="openImport()">Importar</button>
       <button class="btn btn-ghost" onclick="exportTSV()">Exportar TSV</button>
       <button class="btn btn-ghost" onclick="logout()">Salir</button>
     </div>
@@ -377,15 +378,15 @@
     <div class="modal-header">
       <div>
         <div class="modal-subtitle">INVENTARIO</div>
-        <div class="modal-title">Importar TSV</div>
+        <div class="modal-title">Importar inventario</div>
       </div>
       <button class="modal-close" onclick="closeImport()">✕</button>
     </div>
     <div class="modal-body">
-      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">Selecciona un fichero TSV exportado desde Vitalinux o desde esta aplicación. Los equipos existentes se actualizan; los nuevos se insertan.</p>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">Selecciona un fichero exportado desde Vitalinux o desde esta aplicación. Formatos soportados: <strong>TSV · TSP · CSV · ODS</strong>. Los equipos existentes se actualizan; los nuevos se insertan.</p>
       <div class="form-group">
-        <label>Fichero TSV</label>
-        <input type="file" id="importFile" accept=".tsv,.txt,.csv,.log" style="padding:8px;font-size:13px">
+        <label>Fichero</label>
+        <input type="file" id="importFile" accept=".tsv,.tsp,.txt,.csv,.ods,.xlsx,.xls" style="padding:8px;font-size:13px">
       </div>
       <div id="importResult" style="margin-top:14px;font-size:13px;display:none"></div>
     </div>
@@ -809,11 +810,47 @@ function openImport() {
 }
 function closeImport() { document.getElementById('modalImport').classList.remove('open'); }
 
+async function fileToTSV(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  // ODS / XLSX / XLS — necesita SheetJS
+  if (['ods','xlsx','xls'].includes(ext)) {
+    if (typeof XLSX === 'undefined') throw new Error('No se pudo cargar SheetJS (CDN). Comprueba la conexión e intenta de nuevo.');
+    const ab = await file.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(ab), { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_csv(ws, { FS: '\t', blankrows: false });
+  }
+
+  const text = await file.text();
+
+  // CSV (coma o punto y coma — locale español)
+  if (ext === 'csv') {
+    if (typeof XLSX !== 'undefined') {
+      const wb = XLSX.read(text, { type: 'string' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      return XLSX.utils.sheet_to_csv(ws, { FS: '\t', blankrows: false });
+    }
+    // Fallback sin SheetJS: detectar delimitador y convertir
+    const firstLine = text.split('\n')[0] || '';
+    const delim = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+    return text.split('\n').map(line =>
+      line.split(delim).map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"')).join('\t')
+    ).join('\n');
+  }
+
+  // TSV / TSP / TXT — ya viene con tabuladores
+  return text;
+}
+
 async function doImport() {
   const file = document.getElementById('importFile').files[0];
   const res = document.getElementById('importResult');
   if (!file) { res.style.display = 'block'; res.style.color = 'var(--danger)'; res.textContent = 'Selecciona un fichero.'; return; }
-  const tsv = await file.text();
+  res.style.display = 'block'; res.style.color = 'var(--text2)'; res.textContent = 'Procesando…';
+  let tsv;
+  try { tsv = await fileToTSV(file); }
+  catch (err) { res.style.color = 'var(--danger)'; res.textContent = err.message; return; }
   const r = await fetch('/equipos/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -821,10 +858,9 @@ async function doImport() {
     body: JSON.stringify({ tsv })
   });
   const d = await r.json();
-  res.style.display = 'block';
   if (r.ok) {
     res.style.color = 'var(--green)';
-    res.textContent = `Importación completada — ${d.imported} nuevos, ${d.updated} actualizados${d.errors ? `, ${d.errors} errores` : ''}.`;
+    res.textContent = `Completado — ${d.imported} nuevos, ${d.updated} actualizados${d.errors ? `, ${d.errors} errores` : ''}.`;
     await loadData();
   } else {
     res.style.color = 'var(--danger)';
