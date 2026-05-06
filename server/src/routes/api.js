@@ -9,6 +9,8 @@ const MAX_CID   = 128;
 const MAX_FIELD = 512;
 const trim = (v, max = MAX_FIELD) => (v == null ? null : String(v).trim().slice(0, max));
 
+const HW_FIELDS = ['cpu','memoria_mb','slots_memoria','disco_gb','tipo_disco','modelo','serial','grafica','arch','dualizado','secure_boot'];
+
 // ── POST /api/inventario  (llamado por el script bash) ────────
 router.post('/inventario', apiTokenMiddleware, (req, res) => {
   const d = req.body;
@@ -36,6 +38,7 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
   if (existing) {
     // Registrar cambios en historial
     const cambios = [];
+    let hwChanged = false;
     for (const campo of campos) {
       const vAnt = String(existing[campo] ?? '');
       const vNew = String(d[campo] ?? '');
@@ -43,8 +46,11 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
         db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
           .run(d.cid, campo, vAnt, vNew);
         cambios.push({ campo, valor_ant: vAnt, valor_new: vNew });
+        if (HW_FIELDS.includes(campo)) hwChanged = true;
       }
     }
+    // Estado: REVISAR si cambió HW; si no, conservar REVISAR pendiente o confirmar OK
+    const nuevoEstado = hwChanged ? 'REVISAR' : (existing.estado === 'REVISAR' ? 'REVISAR' : 'OK');
     // Actualizar
     db.prepare(`UPDATE equipos SET
       estado=?, version=?, arch=?, name=?, serial=?, ultima_act=?, etiquetas=?,
@@ -53,7 +59,7 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
       ip_publica=?, updated_at=datetime('now')
       WHERE cid=?
     `).run(
-      d.estado, d.version, d.arch, d.name, d.serial, d.ultima_act, d.etiquetas,
+      nuevoEstado, d.version, d.arch, d.name, d.serial, d.ultima_act, d.etiquetas,
       d.cpu, d.memoria_mb, d.slots_memoria, d.disco_gb, d.tipo_disco, d.modelo,
       d.ip, d.mac_ethernet, d.mac_wifi, d.grafica, d.dualizado, d.secure_boot,
       d.ip_publica, d.cid
@@ -70,7 +76,7 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
        ip, mac_ethernet, mac_wifi, grafica, dualizado, secure_boot, ip_publica)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
-      d.cid, d.estado||'Activo', d.version, d.arch, d.name, d.serial,
+      d.cid, 'OK', d.version, d.arch, d.name, d.serial,
       d.ultima_act, d.etiquetas, d.cpu, d.memoria_mb, d.slots_memoria,
       d.disco_gb, d.tipo_disco, d.modelo, d.ip, d.mac_ethernet, d.mac_wifi,
       d.grafica, d.dualizado, d.secure_boot, d.ip_publica

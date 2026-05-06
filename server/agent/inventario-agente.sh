@@ -45,7 +45,7 @@ fi
 log "CID: $CID"
 
 # ── 2. Estado ─────────────────────────────────────────────────
-ESTADO="Activo"
+ESTADO="OK"
 
 # ── 3. Versión ────────────────────────────────────────────────
 VERSION="N/A"
@@ -64,10 +64,10 @@ ARCH="${ARCH_SO}-${ARCH_HW}"
 # ── 5. Nombre del equipo ──────────────────────────────────────
 NAME=$(hostname -s 2>/dev/null || cat /etc/hostname 2>/dev/null | tr -d '\n' || echo "N/A")
 
-# ── 6. Serial ─────────────────────────────────────────────────
+# ── 6. SN Placa ───────────────────────────────────────────────
 SERIAL="N/A"
 if command -v dmidecode &>/dev/null; then
-  SERIAL=$(dmidecode -s system-serial-number 2>/dev/null | tr -d '\n' | xargs || echo "N/A")
+  SERIAL=$(dmidecode -s baseboard-serial-number 2>/dev/null | tr -d '\n' | xargs || echo "N/A")
   [[ "$SERIAL" == "To Be Filled By O.E.M." || -z "$SERIAL" ]] && SERIAL="N/A"
 fi
 
@@ -82,34 +82,10 @@ fi
 
 # ── 8. Etiquetas Migasfree ────────────────────────────────────
 ETIQUETAS="N/A"
-_parse_migasfree_json() {
-  local file="$1"
-  if command -v jq &>/dev/null; then
-    jq -r '(.tags // .attributes // []) | map(tostring) | join(",")' "$file" 2>/dev/null || echo "N/A"
-  elif command -v python3 &>/dev/null; then
-    python3 - "$file" 2>/dev/null <<'PYEOF'
-import json, sys
-try:
-    d = json.load(open(sys.argv[1]))
-    t = d.get('tags', d.get('attributes', []))
-    print(','.join(str(x) for x in t) if t else 'N/A')
-except Exception:
-    print('N/A')
-PYEOF
-  else
-    echo "N/A"
-  fi
-}
-for f in /var/cache/migasfree-client/computer_info.json /etc/migasfree-client/tags; do
-  if [[ -f "$f" ]]; then
-    if [[ "$f" == *.json ]]; then
-      ETIQUETAS=$(_parse_migasfree_json "$f")
-    else
-      ETIQUETAS=$(tr '\n' ',' < "$f" 2>/dev/null | sed 's/,$//' || echo "N/A")
-    fi
-    [[ -n "$ETIQUETAS" && "$ETIQUETAS" != "N/A" ]] && break
-  fi
-done
+if command -v migasfree-tags &>/dev/null; then
+  ETIQUETAS=$(migasfree-tags -g 2>/dev/null | grep -v '^$' | tr '\n' ',' | sed 's/,$//' || echo "N/A")
+  [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
+fi
 
 # ── 9. CPU ───────────────────────────────────────────────────
 CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | sed 's/.*: //' | sed 's/  */ /g' | xargs || echo "N/A")
@@ -120,9 +96,10 @@ MEMORIA_MB=$(awk '/MemTotal/{printf "%.1f", $2/1024}' /proc/meminfo 2>/dev/null 
 # ── 11. Slots RAM ─────────────────────────────────────────────
 SLOTS_MEMORIA="N/A"
 if command -v dmidecode &>/dev/null; then
-  SLOTS_TOTAL=$(dmidecode -t memory 2>/dev/null | grep -c "Memory Device$" || echo "0")
-  SLOTS_LIBRES=$(dmidecode -t memory 2>/dev/null | grep -A5 "Memory Device$" | grep -c "No Module Installed" || echo "0")
-  SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
+  SLOTS_OUTPUT=$(dmidecode -t memory 2>/dev/null | grep -E "Memory Device|Size")
+  SLOTS_TOTAL=$(echo "$SLOTS_OUTPUT" | grep -c "^Memory Device$" || echo "0")
+  SLOTS_LIBRES=$(echo "$SLOTS_OUTPUT" | grep -c "No Module Installed" || echo "0")
+  [[ "$SLOTS_TOTAL" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
 fi
 
 # ── 12. Disco (bytes brutos, como Migasfree) ──────────────────
@@ -210,7 +187,9 @@ fi
 
 # ── 20. IP pública ────────────────────────────────────────────
 IP_PUBLICA="N/A"
-if command -v curl &>/dev/null; then
+if command -v dig &>/dev/null; then
+  IP_PUBLICA=$(dig +short myip.opendns.com @resolver1.opendns.com 2>/dev/null | head -1 || echo "N/A")
+elif command -v curl &>/dev/null; then
   IP_PUBLICA=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "N/A")
 elif command -v wget &>/dev/null; then
   IP_PUBLICA=$(wget -qO- --timeout=5 https://api.ipify.org 2>/dev/null || echo "N/A")

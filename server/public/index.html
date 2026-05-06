@@ -97,7 +97,9 @@
     .tag-name { color: var(--text); font-weight: 500; }
     .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
     .pill-activo { background: rgba(22,163,74,0.1); color: var(--green); border: 1px solid rgba(22,163,74,0.25); }
+    .pill-ok { background: rgba(22,163,74,0.1); color: var(--green); border: 1px solid rgba(22,163,74,0.25); }
     .pill-inactivo { background: rgba(220,38,38,0.08); color: var(--danger); border: 1px solid rgba(220,38,38,0.2); }
+    .pill-revisar { background: rgba(180,83,9,0.1); color: var(--warn); border: 1px solid rgba(180,83,9,0.3); font-weight: 700; }
     .pill-ssd { background: rgba(37,99,235,0.08); color: var(--accent); border: 1px solid rgba(37,99,235,0.2); }
     .pill-hdd { background: rgba(180,83,9,0.08); color: var(--warn); border: 1px solid rgba(180,83,9,0.2); }
     .pill-nvme { background: rgba(22,163,74,0.08); color: var(--green); border: 1px solid rgba(22,163,74,0.2); }
@@ -199,7 +201,7 @@
   <main>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Total equipos</div><div class="stat-val" id="sTotal">—</div></div>
-      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-val" id="sActivos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Estado OK</div><div class="stat-val" id="sActivos">—</div></div>
       <div class="stat-card"><div class="stat-label">Última sync</div><div class="stat-val" style="font-size:15px;line-height:1.4" id="sUlt">—</div><div class="stat-sub" id="sUltSub"></div></div>
       <div class="stat-card"><div class="stat-label">Versiones</div><div id="sVersiones" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
       <div class="stat-card"><div class="stat-label">Tipo disco</div><div id="sDiscos" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
@@ -212,8 +214,8 @@
       </div>
       <select id="filterEstado">
         <option value="">Todos los estados</option>
-        <option value="Activo">Activo</option>
-        <option value="Inactivo">Inactivo</option>
+        <option value="OK">OK</option>
+        <option value="REVISAR">REVISAR</option>
       </select>
       <select id="filterDisco">
         <option value="">Todos los discos</option>
@@ -506,7 +508,7 @@ async function openDetail(cid) {
     ['Estado',         e.estado,                                           false, 'estado'],
     ['Versión',        e.version,                                          false, 'version'],
     ['Arquitectura',   e.arch,                                             false, 'arch'],
-    ['Serial',         e.serial,                                           false, 'serial'],
+    ['SN Placa',       e.serial,                                           false, 'serial'],
     ['Modelo',         e.modelo,                                           false, 'modelo'],
     ['CPU',            e.cpu,                                              false, 'cpu'],
     ['RAM (MB)',       e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—', false, 'memoria_mb'],
@@ -560,14 +562,28 @@ async function openDetail(cid) {
     <div class="section-title">Historial de cambios</div>
     ${histHtml}`;
 
-  document.getElementById('modalFooter').innerHTML = isAdmin
-    ? `<button class="btn btn-danger" onclick="deleteEquipo('${e.cid}')">Eliminar equipo</button>`
-    : '';
+  let footerHtml = '';
+  if (e.estado === 'REVISAR') {
+    footerHtml += `<button class="btn btn-primary" onclick="aceptarCambios('${e.cid}')">✓ Aceptar cambios</button>`;
+  }
+  if (isAdmin) {
+    footerHtml += `<button class="btn btn-danger" onclick="deleteEquipo('${e.cid}')">Eliminar equipo</button>`;
+  }
+  document.getElementById('modalFooter').innerHTML = footerHtml;
 
   document.getElementById('modalOverlay').classList.add('open');
 }
 
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+async function aceptarCambios(cid) {
+  const r = await fetch(`/equipos/${cid}/aceptar`, { method: 'POST', credentials: 'include' });
+  if (r.ok) {
+    closeModal();
+    await loadData();
+    showToast('Cambios aceptados — estado OK', 'ok');
+  } else showToast('Error al aceptar cambios', 'err');
+}
 
 async function deleteEquipo(cid) {
   if (!confirm(`¿Eliminar el equipo ${cid} del inventario?`)) return;

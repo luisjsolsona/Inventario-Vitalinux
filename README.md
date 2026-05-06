@@ -4,7 +4,12 @@ Sistema de inventario hardware centralizado para institutos con equipos Vitalinu
 
 ## Funcionalidad principal
 
-La plataforma permite a los técnicos de sistemas llevar un inventario actualizado de todos los equipos del centro sin intervención manual. Un agente Bash ligero, instalado una vez en cada equipo, recoge 21 campos de hardware —CPU, RAM, disco, red, Secure Boot, etiquetas Migasfree, etc.— y los envía al servidor en cada arranque y diariamente a las 08:05. El servidor detecta automáticamente qué campos han cambiado respecto al envío anterior y los registra en un historial por equipo.
+La plataforma permite a los técnicos de sistemas llevar un inventario actualizado de todos los equipos del centro sin intervención manual. Un agente Bash ligero, instalado una vez en cada equipo, recoge 21 campos de hardware —CPU, RAM, disco, red, Secure Boot, etiquetas Migasfree, etc.— y los envía al servidor en cada arranque y diariamente a las 08:05. El servidor detecta automáticamente qué campos de hardware han cambiado y actualiza el **estado del equipo**:
+
+- **OK** — ningún campo de hardware ha cambiado desde el último inventario
+- **REVISAR** — se detectó un cambio en CPU, RAM, disco, modelo, serial, gráfica, arquitectura, dualizado o Secure Boot; el equipo se marca en naranja en el listado
+
+El técnico puede revisar los cambios en el detalle del equipo y pulsar **"✓ Aceptar cambios"** para volver el estado a OK.
 
 ### Servidor con Listado de equipos
 ![Servidor Inventario](inventario-vitalinux-1.jpg)
@@ -22,8 +27,10 @@ La plataforma permite a los técnicos de sistemas llevar un inventario actualiza
 **Para el técnico / administrador:**
 - Dashboard web con búsqueda, filtros por versión y tipo de disco, y modal de detalle por equipo
 - Campo **Último inventario** en cada equipo — fecha y hora exacta en que el agente se ejecutó por última vez
-- **Equipos con cambios marcados en rojo** en el listado general — punto rojo junto al nombre si el último envío detectó algún cambio
-- Campos que cambiaron en el último envío resaltados en rojo en el detalle, mostrando el valor anterior y el actual
+- **Estado visual por equipo**: `OK` (verde) si el hardware no ha variado, `REVISAR` (naranja) si se detectó algún cambio de HW
+- **Aceptar cambios**: botón en el detalle del equipo para confirmar los cambios y restablecer el estado a OK
+- **Equipos con cambios marcados** en el listado general — punto naranja junto al nombre si el último envío detectó algún cambio de hardware
+- Campos que cambiaron en el último envío resaltados en el detalle, mostrando el valor anterior y el actual
 - Historial de cambios agrupado por ejecución del agente
 - Exportación del inventario completo en TSV compatible con LibreOffice Calc y Excel
 - Eliminación de equipos con borrado en cascada del historial
@@ -44,10 +51,11 @@ La plataforma permite a los técnicos de sistemas llevar un inventario actualiza
 **Para el agente en los equipos:**
 - La página de login muestra el comando de instalación con la IP del servidor ya incluida
 - Instalación en un solo comando desde el equipo cliente, sin configuración manual
-- Recogida automática de serial, modelo, CPU, RAM, slots de memoria, disco, tipo de disco, MACs ethernet y WiFi, gráfica, IP local, IP pública, Secure Boot y estado de dualizado
-- Detección fiable de **slots RAM** usando `dmidecode -t 17` con conteo directo (sin falsos positivos por entradas virtuales del BIOS)
+- Recogida automática de **SN Placa** (`dmidecode -s baseboard-serial-number`), modelo, CPU, RAM, slots de memoria, disco, tipo de disco, MACs ethernet y WiFi, gráfica, IP local, IP pública, Secure Boot y estado de dualizado
+- **Slots RAM** usando `dmidecode -t memory | grep -E "Memory Device|Size"` con conteo de slots totales y libres
+- **IP pública** via DNS: `dig +short myip.opendns.com @resolver1.opendns.com` (fallback curl/wget)
+- **Etiquetas Migasfree** obtenidas con `migasfree-tags -g`
 - Detección fiable de **dualizado**: comprueba efibootmgr, directorio EFI/Microsoft y particiones NTFS en discos internos
-- **Etiquetas Migasfree** con soporte de estructura de objetos (id/name) además de strings planos
 - Integración nativa con Migasfree — usa `migasfree-cid` como identificador y recoge etiquetas del cliente
 - Fallback automático al hash de MAC si Migasfree no está disponible
 

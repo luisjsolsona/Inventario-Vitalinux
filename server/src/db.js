@@ -18,7 +18,7 @@ function initDB() {
     CREATE TABLE IF NOT EXISTS equipos (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       cid           TEXT UNIQUE NOT NULL,
-      estado        TEXT DEFAULT 'Activo',
+      estado        TEXT DEFAULT 'OK',
       version       TEXT,
       arch          TEXT,
       name          TEXT,

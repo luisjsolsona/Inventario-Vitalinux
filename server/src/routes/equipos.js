@@ -22,6 +22,14 @@ router.get('/:cid', authMiddleware, (req, res) => {
   res.json({ equipo, historial });
 });
 
+// Aceptar cambios de HW (resetea estado a OK)
+router.post('/:cid/aceptar', authMiddleware, (req, res) => {
+  const equipo = getDB().prepare('SELECT cid FROM equipos WHERE cid = ?').get(req.params.cid);
+  if (!equipo) return res.status(404).json({ error: 'No encontrado' });
+  getDB().prepare("UPDATE equipos SET estado='OK' WHERE cid = ?").run(req.params.cid);
+  res.json({ ok: true });
+});
+
 // Eliminar (solo admin)
 router.delete('/:cid', authMiddleware, (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
@@ -34,7 +42,7 @@ router.delete('/:cid', authMiddleware, (req, res) => {
 router.get('/_stats', authMiddleware, (req, res) => {
   const db = getDB();
   const total = db.prepare('SELECT COUNT(*) as n FROM equipos').get().n;
-  const activos = db.prepare("SELECT COUNT(*) as n FROM equipos WHERE estado='Activo'").get().n;
+  const activos = db.prepare("SELECT COUNT(*) as n FROM equipos WHERE estado='OK'").get().n;
   const porVersion = db.prepare('SELECT version, COUNT(*) as n FROM equipos GROUP BY version').all();
   const porTipoDisco = db.prepare('SELECT tipo_disco, COUNT(*) as n FROM equipos GROUP BY tipo_disco').all();
   const ultimaActualizacion = db.prepare('SELECT MAX(updated_at) as fecha FROM equipos').get().fecha;
