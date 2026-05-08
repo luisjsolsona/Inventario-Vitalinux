@@ -68,13 +68,7 @@ log "CID: $CID"
 ESTADO="OK"
 
 # ── 3. Versión ────────────────────────────────────────────────
-VERSION="N/A"
-if [[ -f /etc/vitalinux-release ]]; then
-  VERSION=$(grep -oP 'VX-\S+' /etc/vitalinux-release 2>/dev/null | head -1 || true)
-  [[ -z "$VERSION" ]] && VERSION=$(head -1 /etc/vitalinux-release 2>/dev/null || true)
-elif [[ -f /etc/os-release ]]; then
-  VERSION=$(. /etc/os-release; echo "${PRETTY_NAME:-N/A}")
-fi
+VERSION=$(dpkg -l vx-dga-l-conky 2>/dev/null | awk '/^ii/{split($3,v,"."); print "VX-" v[1] ".x"}')
 [[ -z "$VERSION" ]] && VERSION="N/A"
 
 # ── 4. Arquitectura ───────────────────────────────────────────
@@ -106,19 +100,16 @@ fi
 [[ -z "$ULTIMA_ACT" ]] && ULTIMA_ACT="N/A"
 
 # ── 8. Etiquetas Migasfree ────────────────────────────────────
-ETIQUETAS="N/A"
-if command -v migasfree-tags &>/dev/null; then
-  ETIQUETAS=$(migasfree-tags -g 2>/dev/null | grep -v '^$' | tr '\n' ',' | sed 's/,$//' || true)
-  [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
-fi
+ETIQUETAS=$(migasfree-tags -g 2>/dev/null | grep -v '^$' | tr '\n' ',' | sed 's/,$//' || true)
+[[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 
 # ── 9. CPU ───────────────────────────────────────────────────
-CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null \
-  | sed 's/.*: //; s/  */ /g' | trim || echo "N/A")
+CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ / /; s/ GHz/GHz/')
 [[ -z "$CPU" ]] && CPU="N/A"
 
-# ── 10. RAM (MB como float) ───────────────────────────────────
-MEMORIA_MB=$(awk '/MemTotal/{printf "%.1f", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
+# ── 10. RAM (MB redondeada a potencia de 2) ───────────────────
+MEMORIA_MB=$(awk '/MemTotal/{mb=$2/1024; p=1; while(p<mb) p*=2; print (mb-p/2 < p-mb) ? p/2 : p}' /proc/meminfo)
+[[ -z "$MEMORIA_MB" ]] && MEMORIA_MB="0"
 
 # ── 11. Slots RAM ─────────────────────────────────────────────
 SLOTS_MEMORIA="N/A"
@@ -129,42 +120,30 @@ if command -v dmidecode &>/dev/null; then
   [[ "${SLOTS_TOTAL:-0}" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
 fi
 
-# ── 12. Disco (bytes brutos) ──────────────────────────────────
-# El frontend convierte a GB/TB con fmtBytes(); se envía como string
-DISCO_GB="0"
-if command -v lsblk &>/dev/null; then
-  DISCO_BYTES=$(lsblk -bdno SIZE,TYPE 2>/dev/null | awk '$2=="disk"{sum+=$1} END{print sum+0}')
-  [[ -n "$DISCO_BYTES" && "$DISCO_BYTES" != "0" ]] && DISCO_GB="$DISCO_BYTES"
-fi
+# ── 12. Disco ────────────────────────────────────────────────
+DISCO_GB=$(lsblk -bdno SIZE,TYPE 2>/dev/null | awk '$2=="disk"{sum+=$1} END{gb=sum/1024/1024/1024; p=1; while(p<gb) p*=2; print (gb-p/2 < p-gb) ? p/2 : p " GB"}')
+[[ -z "$DISCO_GB" ]] && DISCO_GB="N/A"
 
 # ── 13. Tipo disco ────────────────────────────────────────────
 TIPO_DISCO="N/A"
-HAS_SSD=false; HAS_HDD=false; HAS_NVME=false
-for dev in /sys/block/*/queue/rotational; do
-  [[ -f "$dev" ]] || continue
-  devname=$(echo "$dev" | awk -F'/' '{print $4}')
-  # Excluir ópticas, loop, device-mapper, zram, floppy, RAM disk, etc.
-  [[ "$devname" =~ ^(sr|loop|dm|zram|fd|ram|nbd|md) ]] && continue
-  [[ "$devname" == nvme* ]] && HAS_NVME=true && continue
-  rot=$(cat "$dev" 2>/dev/null)
-  [[ "$rot" == "0" ]] && HAS_SSD=true
-  [[ "$rot" == "1" ]] && HAS_HDD=true
-done
-if $HAS_NVME; then TIPO_DISCO="nvme"
-elif $HAS_SSD && $HAS_HDD; then TIPO_DISCO="ssd+hdd"
-elif $HAS_SSD; then TIPO_DISCO="ssd"
-elif $HAS_HDD; then TIPO_DISCO="hdd"
+_root_dev=$(lsblk -no PKNAME "$(findmnt -n -o SOURCE /)" 2>/dev/null | head -1 || true)
+if [[ -n "$_root_dev" ]]; then
+  _rot=$(cat /sys/block/${_root_dev}/queue/rotational 2>/dev/null || true)
+  if [[ "$_root_dev" == nvme* ]]; then
+    TIPO_DISCO="nvme"
+  elif [[ "$_rot" == "0" ]]; then
+    TIPO_DISCO="ssd"
+  else
+    TIPO_DISCO="hdd"
+  fi
 fi
 
 # ── 14. Modelo ───────────────────────────────────────────────
 MODELO="N/A"
 if command -v dmidecode &>/dev/null; then
-  MP=$(dmidecode -s system-product-name 2>/dev/null | trim || true)
-  MS=$(dmidecode -s system-sku-number 2>/dev/null | trim || true)
-  [[ "$MP" == "To Be Filled By O.E.M." ]] && MP=""
-  [[ "$MS" == "To Be Filled By O.E.M." ]] && MS=""
-  MODELO="${MP}${MS:+ ($MS)}"
-  [[ -z "$MODELO" ]] && MODELO="N/A"
+  MP=$(dmidecode -s system-product-name 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  MS=$(dmidecode -s system-sku-number 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  [[ -n "$MP" || -n "$MS" ]] && MODELO="${MP} (${MS})"
 fi
 
 # ── 15. IP local ─────────────────────────────────────────────
@@ -173,51 +152,33 @@ IP=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1 \
   || echo "N/A")
 
 # ── 16. MACs ─────────────────────────────────────────────────
-# Nota: si hay varias interfaces ethernet, se separan con " | "
-MAC_ETHERNET=""
-MAC_WIFI="----"
-while IFS= read -r iface; do
-  n=$(basename "$iface")
-  [[ "$n" == "lo" ]] && continue
-  [[ ! -f "${iface}/address" ]] && continue
-  mac=$(cat "${iface}/address" 2>/dev/null | tr '[:lower:]' '[:upper:]' | tr -d ':')
-  [[ -z "$mac" || "$mac" == "000000000000" ]] && continue
-  if [[ -d "${iface}/wireless" ]]; then
-    MAC_WIFI="$mac"
-  else
-    [[ -n "$MAC_ETHERNET" ]] && MAC_ETHERNET="${MAC_ETHERNET} | "
-    MAC_ETHERNET="${MAC_ETHERNET}${mac}"
-  fi
-done < <(find /sys/class/net -mindepth 1 -maxdepth 1)
+_main_iface=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'dev \K\S+' | head -1 || true)
+MAC_ETHERNET=$(cat /sys/class/net/${_main_iface}/address 2>/dev/null || true)
 [[ -z "$MAC_ETHERNET" ]] && MAC_ETHERNET="N/A"
 
+_wifi_mac=$(for _w in /sys/class/net/*/wireless; do cat "${_w}/../address" 2>/dev/null; done)
+MAC_WIFI="${_wifi_mac:-"-----"}"
+
 # ── 17. Gráfica ──────────────────────────────────────────────
-GRAFICA="N/A"
-if command -v lspci &>/dev/null; then
-  GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' \
-    | sed 's/.*: //' | head -1 | trim || echo "N/A")
-fi
+GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' | sed 's/.*: //' | head -1 || true)
+[[ -z "$GRAFICA" ]] && GRAFICA="N/A"
 
 # ── 18. Dualizado ─────────────────────────────────────────────
-# Se detecta por presencia de partición NTFS (método más fiable en Linux)
-DUALIZADO="NO"
-# Método 1: efibootmgr lista una entrada Windows
-if command -v efibootmgr &>/dev/null && efibootmgr 2>/dev/null | grep -qi "windows"; then
-  DUALIZADO="SI"
-fi
+DUALIZADO=$(efibootmgr 2>/dev/null | grep -qi "windows" && echo "SI" || echo "NO")
 
 # ── 19. Secure Boot ───────────────────────────────────────────
-SECURE_BOOT="N/A"
+SECURE_BOOT="---"
 if command -v mokutil &>/dev/null; then
   SB=$(mokutil --sb-state 2>/dev/null || true)
-  echo "$SB" | grep -qi "enabled"  && SECURE_BOOT="enabled"
-  echo "$SB" | grep -qi "disabled" && SECURE_BOOT="disabled"
-elif [[ -f "/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c" ]]; then
-  SBB=$(od -An -tu1 "/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c" \
-    2>/dev/null | awk '{print $NF}')
-  [[ "$SBB" == "1" ]] && SECURE_BOOT="enabled" || SECURE_BOOT="disabled"
-elif [[ ! -d /sys/firmware/efi ]]; then
-  SECURE_BOOT="no-efi"
+  if echo "$SB" | grep -qi "enabled"; then
+    SECURE_BOOT="enabled"
+  elif echo "$SB" | grep -qi "disabled"; then
+    SECURE_BOOT="disabled"
+  else
+    SECURE_BOOT="unknown"
+  fi
+elif [[ -d /sys/firmware/efi ]]; then
+  SECURE_BOOT="unknown"
 fi
 
 # ── 20. IP pública ────────────────────────────────────────────
