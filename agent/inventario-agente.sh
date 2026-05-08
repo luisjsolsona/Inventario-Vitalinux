@@ -78,8 +78,10 @@ fi
 [[ -z "$VERSION" ]] && VERSION="N/A"
 
 # ── 4. Arquitectura ───────────────────────────────────────────
-# Se reporta la arquitectura del SO (64 o 32 bits)
-ARCH=$(uname -m | grep -q 'x86_64' && echo "64" || echo "32")
+# Formato SO-HW (ej: 64-64) para consistencia con datos históricos
+ARCH_SO=$(uname -m | grep -q 'x86_64' && echo "64" || echo "32")
+ARCH_HW=$(grep -m1 'flags' /proc/cpuinfo 2>/dev/null | grep -q '\blm\b' && echo "64" || echo "32")
+ARCH="${ARCH_SO}-${ARCH_HW}"
 
 # ── 5. Nombre del equipo ──────────────────────────────────────
 NAME=$(hostname -s 2>/dev/null || cat /etc/hostname 2>/dev/null | tr -d '\n' || echo "N/A")
@@ -111,16 +113,8 @@ if command -v migasfree-tags &>/dev/null; then
 fi
 
 # ── 9. CPU ───────────────────────────────────────────────────
-# dmidecode lee del BIOS (estable entre actualizaciones de kernel)
-CPU="N/A"
-if command -v dmidecode &>/dev/null; then
-  _cpu=$(dmidecode -s processor-version 2>/dev/null | grep -v '^#' | head -1 | trim || true)
-  [[ -n "$_cpu" && "$_cpu" != "To Be Filled By O.E.M." ]] && CPU="$_cpu"
-fi
-if [[ "$CPU" == "N/A" ]]; then
-  CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null \
-    | sed 's/.*: //; s/  */ /g' | trim || echo "N/A")
-fi
+CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null \
+  | sed 's/.*: //; s/  */ /g' | trim || echo "N/A")
 [[ -z "$CPU" ]] && CPU="N/A"
 
 # ── 10. RAM (MB como float) ───────────────────────────────────
@@ -201,7 +195,7 @@ done < <(find /sys/class/net -mindepth 1 -maxdepth 1)
 GRAFICA="N/A"
 if command -v lspci &>/dev/null; then
   GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' \
-    | sed 's/^[^ ]* [^:]*: //' | head -1 | trim || echo "N/A")
+    | sed 's/.*: //' | head -1 | trim || echo "N/A")
 fi
 
 # ── 18. Dualizado ─────────────────────────────────────────────
@@ -210,18 +204,6 @@ DUALIZADO="NO"
 # Método 1: efibootmgr lista una entrada Windows
 if command -v efibootmgr &>/dev/null && efibootmgr 2>/dev/null | grep -qi "windows"; then
   DUALIZADO="SI"
-fi
-# Método 2: directorio EFI/Microsoft en la partición EFI montada
-if [[ "$DUALIZADO" == "NO" ]]; then
-  for _efi in /boot/efi /efi /boot; do
-    [[ -d "$_efi/EFI/Microsoft" ]] && DUALIZADO="SI" && break
-  done
-fi
-# Método 3: partición NTFS en disco interno (no extraíble)
-if [[ "$DUALIZADO" == "NO" ]] && command -v lsblk &>/dev/null; then
-  if lsblk -lo FSTYPE,RM,TYPE 2>/dev/null | awk 'NR>1 && /ntfs|NTFS/ && $2=="0" && $3=="part"{found=1} END{exit !found}'; then
-    DUALIZADO="SI"
-  fi
 fi
 
 # ── 19. Secure Boot ───────────────────────────────────────────
