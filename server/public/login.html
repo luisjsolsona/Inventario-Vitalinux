@@ -133,18 +133,6 @@
       cursor: pointer;
       user-select: all;
     }
-    .agent-dl {
-      display: inline-block;
-      font-size: 12px;
-      color: var(--text2);
-      text-decoration: none;
-      border: 1px solid var(--border2);
-      border-radius: 6px;
-      padding: 4px 12px;
-      font-weight: 500;
-      transition: all 0.15s;
-    }
-    .agent-dl:hover { color: var(--accent); border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -172,14 +160,12 @@
       <div class="agent-title">Instalar agente en un equipo</div>
       <div class="agent-sub">Ejecuta como root en el equipo Vitalinux:</div>
       <div class="agent-cmd" id="curlCmd"></div>
-      <a class="agent-dl" id="dlLink" href="/agente.sh" download="inventario-agente.sh">Descargar script</a>
     </div>
   </div>
 
   <script>
     const origin = window.location.origin;
     document.getElementById('curlCmd').textContent = `curl -fsSL ${origin}/agente.sh | sudo bash`;
-    document.getElementById('dlLink').href = `${origin}/agente.sh`;
 
     document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
