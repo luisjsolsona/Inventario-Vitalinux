@@ -111,8 +111,16 @@ if command -v migasfree-tags &>/dev/null; then
 fi
 
 # ── 9. CPU ───────────────────────────────────────────────────
-CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null \
-  | sed 's/.*: //; s/  */ /g' | trim || echo "N/A")
+# dmidecode lee del BIOS (estable entre actualizaciones de kernel)
+CPU="N/A"
+if command -v dmidecode &>/dev/null; then
+  _cpu=$(dmidecode -s processor-version 2>/dev/null | grep -v '^#' | head -1 | trim || true)
+  [[ -n "$_cpu" && "$_cpu" != "To Be Filled By O.E.M." ]] && CPU="$_cpu"
+fi
+if [[ "$CPU" == "N/A" ]]; then
+  CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null \
+    | sed 's/.*: //; s/  */ /g' | trim || echo "N/A")
+fi
 [[ -z "$CPU" ]] && CPU="N/A"
 
 # ── 10. RAM (MB como float) ───────────────────────────────────
@@ -127,14 +135,12 @@ if command -v dmidecode &>/dev/null; then
   [[ "${SLOTS_TOTAL:-0}" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
 fi
 
-# ── 12. Disco (bytes brutos → GB enteros) ─────────────────────
-# El servidor recibe un número entero de GB; se envía sin comillas (tipo numérico JSON)
-DISCO_GB=0
+# ── 12. Disco (bytes brutos) ──────────────────────────────────
+# El frontend convierte a GB/TB con fmtBytes(); se envía como string
+DISCO_GB="0"
 if command -v lsblk &>/dev/null; then
   DISCO_BYTES=$(lsblk -bdno SIZE,TYPE 2>/dev/null | awk '$2=="disk"{sum+=$1} END{print sum+0}')
-  if [[ -n "$DISCO_BYTES" && "$DISCO_BYTES" -gt 0 ]]; then
-    DISCO_GB=$(awk "BEGIN{printf \"%d\", $DISCO_BYTES/1073741824}")
-  fi
+  [[ -n "$DISCO_BYTES" && "$DISCO_BYTES" != "0" ]] && DISCO_GB="$DISCO_BYTES"
 fi
 
 # ── 13. Tipo disco ────────────────────────────────────────────
@@ -142,9 +148,11 @@ TIPO_DISCO="N/A"
 HAS_SSD=false; HAS_HDD=false; HAS_NVME=false
 for dev in /sys/block/*/queue/rotational; do
   [[ -f "$dev" ]] || continue
-  rot=$(cat "$dev" 2>/dev/null)
   devname=$(echo "$dev" | awk -F'/' '{print $4}')
+  # Excluir ópticas, loop, device-mapper, zram, floppy, RAM disk, etc.
+  [[ "$devname" =~ ^(sr|loop|dm|zram|fd|ram|nbd|md) ]] && continue
   [[ "$devname" == nvme* ]] && HAS_NVME=true && continue
+  rot=$(cat "$dev" 2>/dev/null)
   [[ "$rot" == "0" ]] && HAS_SSD=true
   [[ "$rot" == "1" ]] && HAS_HDD=true
 done
@@ -193,7 +201,7 @@ done < <(find /sys/class/net -mindepth 1 -maxdepth 1)
 GRAFICA="N/A"
 if command -v lspci &>/dev/null; then
   GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' \
-    | sed 's/.*: //' | head -1 | trim || echo "N/A")
+    | sed 's/^[^ ]* [^:]*: //' | head -1 | trim || echo "N/A")
 fi
 
 # ── 18. Dualizado ─────────────────────────────────────────────
@@ -257,7 +265,7 @@ PAYLOAD=$(cat <<EOF
   "cpu":           "$(json_esc "$CPU")",
   "memoria_mb":    $MEMORIA_MB,
   "slots_memoria": "$(json_esc "$SLOTS_MEMORIA")",
-  "disco_gb":      $DISCO_GB,
+  "disco_gb":      "$(json_esc "$DISCO_GB")",
   "tipo_disco":    "$(json_esc "$TIPO_DISCO")",
   "modelo":        "$(json_esc "$MODELO")",
   "ip":            "$(json_esc "$IP")",
