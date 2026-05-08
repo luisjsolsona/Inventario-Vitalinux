@@ -35,11 +35,11 @@ fi
 json_esc() {
   local val="$1"
   if command -v jq &>/dev/null; then
-    printf '%s' "$val" | jq -Rrs .  | sed 's/^"//;s/"$//'
+    printf '%s' "$val" | jq -Rs .    | sed 's/^"//;s/"$//'
   else
     printf '%s' "$val" \
       | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g' \
-      | tr -d '\000-\031'
+      | tr -d '\000-\037'
   fi
 }
 
