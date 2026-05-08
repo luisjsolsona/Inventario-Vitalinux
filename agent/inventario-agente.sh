@@ -87,11 +87,7 @@ NAME=$(hostname -s 2>/dev/null || cat /etc/hostname 2>/dev/null | tr -d '\n' || 
 # ── 6. SN Placa ───────────────────────────────────────────────
 SERIAL="N/A"
 if command -v dmidecode &>/dev/null; then
-<<<<<<< HEAD
-  SERIAL=$(dmidecode -s baseboard-serial-number 2>/dev/null | tr -d '\n' | xargs || echo "N/A")
-=======
   SERIAL=$(dmidecode -s baseboard-serial-number 2>/dev/null | trim || true)
->>>>>>> 5828cba (mejoras-agente)
   [[ "$SERIAL" == "To Be Filled By O.E.M." || -z "$SERIAL" ]] && SERIAL="N/A"
 fi
 
@@ -110,11 +106,7 @@ fi
 # ── 8. Etiquetas Migasfree ────────────────────────────────────
 ETIQUETAS="N/A"
 if command -v migasfree-tags &>/dev/null; then
-<<<<<<< HEAD
-  ETIQUETAS=$(migasfree-tags -g 2>/dev/null | grep -v '^$' | tr '\n' ',' | sed 's/,$//' || echo "N/A")
-=======
   ETIQUETAS=$(migasfree-tags -g 2>/dev/null | grep -v '^$' | tr '\n' ',' | sed 's/,$//' || true)
->>>>>>> 5828cba (mejoras-agente)
   [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 fi
 
@@ -130,15 +122,9 @@ MEMORIA_MB=$(awk '/MemTotal/{printf "%.1f", $2/1024}' /proc/meminfo 2>/dev/null 
 SLOTS_MEMORIA="N/A"
 if command -v dmidecode &>/dev/null; then
   SLOTS_OUTPUT=$(dmidecode -t memory 2>/dev/null | grep -E "Memory Device|Size")
-<<<<<<< HEAD
-  SLOTS_TOTAL=$(echo "$SLOTS_OUTPUT" | grep -c "^Memory Device$" || echo "0")
-  SLOTS_LIBRES=$(echo "$SLOTS_OUTPUT" | grep -c "No Module Installed" || echo "0")
-  [[ "$SLOTS_TOTAL" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
-=======
   SLOTS_TOTAL=$(echo "$SLOTS_OUTPUT" | grep -c "^Memory Device$" || true)
   SLOTS_LIBRES=$(echo "$SLOTS_OUTPUT" | grep -c "No Module Installed" || true)
   [[ "${SLOTS_TOTAL:-0}" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
->>>>>>> 5828cba (mejoras-agente)
 fi
 
 # ── 12. Disco (bytes brutos → GB enteros) ─────────────────────
@@ -217,7 +203,6 @@ DUALIZADO="NO"
 if command -v efibootmgr &>/dev/null && efibootmgr 2>/dev/null | grep -qi "windows"; then
   DUALIZADO="SI"
 fi
-<<<<<<< HEAD
 # Método 2: directorio EFI/Microsoft en la partición EFI montada
 if [[ "$DUALIZADO" == "NO" ]]; then
   for _efi in /boot/efi /efi /boot; do
@@ -230,8 +215,6 @@ if [[ "$DUALIZADO" == "NO" ]] && command -v lsblk &>/dev/null; then
     DUALIZADO="SI"
   fi
 fi
-=======
->>>>>>> 5828cba (mejoras-agente)
 
 # ── 19. Secure Boot ───────────────────────────────────────────
 SECURE_BOOT="N/A"
@@ -250,15 +233,9 @@ fi
 # ── 20. IP pública ────────────────────────────────────────────
 IP_PUBLICA="N/A"
 if command -v dig &>/dev/null; then
-<<<<<<< HEAD
-  IP_PUBLICA=$(dig +short myip.opendns.com @resolver1.opendns.com 2>/dev/null | head -1 || echo "N/A")
-elif command -v curl &>/dev/null; then
-  IP_PUBLICA=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "N/A")
-=======
   IP_PUBLICA=$(dig +short myip.opendns.com @resolver1.opendns.com 2>/dev/null | head -1 || true)
 elif command -v curl &>/dev/null; then
   IP_PUBLICA=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || true)
->>>>>>> 5828cba (mejoras-agente)
 elif command -v wget &>/dev/null; then
   IP_PUBLICA=$(wget -qO- --timeout=5 https://api.ipify.org 2>/dev/null || true)
 fi
