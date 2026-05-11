@@ -100,11 +100,15 @@ fi
 [[ -z "$ULTIMA_ACT" ]] && ULTIMA_ACT="N/A"
 
 # ── 8. Etiquetas Migasfree ────────────────────────────────────
-ETIQUETAS=$(migasfree-tags -g 2>/dev/null | grep -v '^$' | tr '\n' ',' | sed 's/,$//' || true)
+ETIQUETAS=$(migasfree-tags -g 2>/dev/null \
+  | tr -d '"' | sed 's/[A-Za-z]*-//g' \
+  | tr ',' '\n' | grep -v '^$' \
+  | tr '\n' ',' | sed 's/,/, /g; s/, $//' \
+  || true)
 [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 
 # ── 9. CPU ───────────────────────────────────────────────────
-CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ / /; s/ GHz/GHz/')
+CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ /   /; s/ GHz/GHz/')
 [[ -z "$CPU" ]] && CPU="N/A"
 
 # ── 10. RAM (MB redondeada a potencia de 2) ───────────────────
@@ -121,7 +125,7 @@ if command -v dmidecode &>/dev/null; then
 fi
 
 # ── 12. Disco ────────────────────────────────────────────────
-DISCO_GB=$(lsblk -bdno SIZE,TYPE 2>/dev/null | awk '$2=="disk"{sum+=$1} END{gb=sum/1024/1024/1024; p=1; while(p<gb) p*=2; print (gb-p/2 < p-gb) ? p/2 : p " GB"}')
+DISCO_GB=$(lsblk -bdno SIZE,TYPE 2>/dev/null | awk '$2=="disk"{sum+=$1} END{printf "%.9f", sum/1000000000}')
 [[ -z "$DISCO_GB" ]] && DISCO_GB="N/A"
 
 # ── 13. Tipo disco ────────────────────────────────────────────
@@ -160,7 +164,9 @@ _wifi_mac=$(for _w in /sys/class/net/*/wireless; do cat "${_w}/../address" 2>/de
 MAC_WIFI="${_wifi_mac:-"-----"}"
 
 # ── 17. Gráfica ──────────────────────────────────────────────
-GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' | sed 's/.*: //' | head -1 || true)
+GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' \
+  | sed 's/.*: //' | sed 's/^[A-Za-z]* Corporation //; s/ (rev [0-9a-f]*)$//' \
+  | head -1 || true)
 [[ -z "$GRAFICA" ]] && GRAFICA="N/A"
 
 # ── 18. Dualizado ─────────────────────────────────────────────
