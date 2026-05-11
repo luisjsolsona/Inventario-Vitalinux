@@ -108,7 +108,7 @@ ETIQUETAS=$(migasfree-tags -g 2>/dev/null \
 [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 
 # ── 9. CPU ───────────────────────────────────────────────────
-CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ /   /; s/ GHz/GHz/')
+CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ / /; s/ GHz/GHz/')
 [[ -z "$CPU" ]] && CPU="N/A"
 
 # ── 10. RAM (MB redondeada a potencia de 2) ───────────────────
@@ -157,7 +157,7 @@ IP=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1 \
 
 # ── 16. MACs ─────────────────────────────────────────────────
 _main_iface=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'dev \K\S+' | head -1 || true)
-MAC_ETHERNET=$(cat /sys/class/net/${_main_iface}/address 2>/dev/null || true)
+MAC_ETHERNET=$(cat /sys/class/net/${_main_iface}/address 2>/dev/null | tr -d ':' | tr '[:lower:]' '[:upper:]' || true)
 [[ -z "$MAC_ETHERNET" ]] && MAC_ETHERNET="N/A"
 
 _wifi_mac=$(for _w in /sys/class/net/*/wireless; do cat "${_w}/../address" 2>/dev/null; done)
@@ -170,7 +170,10 @@ GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' \
 [[ -z "$GRAFICA" ]] && GRAFICA="N/A"
 
 # ── 18. Dualizado ─────────────────────────────────────────────
-DUALIZADO=$(efibootmgr 2>/dev/null | grep -qi "windows" && echo "SI" || echo "NO")
+DUALIZADO="NO"
+if command -v lsblk &>/dev/null && lsblk -f 2>/dev/null | grep -qi 'ntfs'; then
+  DUALIZADO="SI"
+fi
 
 # ── 19. Secure Boot ───────────────────────────────────────────
 SECURE_BOOT="---"
