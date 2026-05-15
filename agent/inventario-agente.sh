@@ -100,11 +100,16 @@ fi
 [[ -z "$ULTIMA_ACT" ]] && ULTIMA_ACT="N/A"
 
 # ── 8. Etiquetas Migasfree ────────────────────────────────────
-ETIQUETAS=$(migasfree-tags -g 2>/dev/null \
-  | tr -d '"' | sed 's/[A-Za-z]*-//g' \
-  | tr ',' '\n' | grep -v '^$' \
-  | tr '\n' ',' | sed 's/,/, /g; s/, $//' \
-  || true)
+ETIQUETAS="N/A"
+for _try in 1 2 3; do
+  _tags_raw=$(migasfree-tags -g 2>/dev/null || true)
+  echo "$_tags_raw" | grep -qi 'instancia' && { sleep 5; continue; }
+  ETIQUETAS=$(printf '%s' "$_tags_raw" \
+    | tr -d '"' | sed 's/[A-Za-z]*-//g' \
+    | tr ',' '\n' | grep -v '^$' \
+    | tr '\n' ',' | sed 's/,/, /g; s/, $//' || true)
+  break
+done
 [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 
 # ── 9. CPU ───────────────────────────────────────────────────
@@ -129,17 +134,20 @@ DISCO_GB=$(lsblk -bdno SIZE,TYPE 2>/dev/null | awk '$2=="disk"{sum+=$1} END{prin
 [[ -z "$DISCO_GB" ]] && DISCO_GB="N/A"
 
 # ── 13. Tipo disco ────────────────────────────────────────────
+# NVMe tiene rotational=0, se trata como ssd para compatibilidad con datos históricos
 TIPO_DISCO="N/A"
-_root_dev=$(lsblk -no PKNAME "$(findmnt -n -o SOURCE /)" 2>/dev/null | head -1 || true)
-if [[ -n "$_root_dev" ]]; then
-  _rot=$(cat /sys/block/${_root_dev}/queue/rotational 2>/dev/null || true)
-  if [[ "$_root_dev" == nvme* ]]; then
-    TIPO_DISCO="nvme"
-  elif [[ "$_rot" == "0" ]]; then
-    TIPO_DISCO="ssd"
-  else
-    TIPO_DISCO="hdd"
-  fi
+HAS_SSD=false; HAS_HDD=false
+for _dev in /sys/block/*/queue/rotational; do
+  [[ -f "$_dev" ]] || continue
+  _dname=$(echo "$_dev" | awk -F'/' '{print $4}')
+  [[ "$_dname" =~ ^(sr|loop|dm|zram|fd|ram|nbd|md) ]] && continue
+  _rot=$(cat "$_dev" 2>/dev/null)
+  [[ "$_rot" == "0" ]] && HAS_SSD=true
+  [[ "$_rot" == "1" ]] && HAS_HDD=true
+done
+if $HAS_SSD && $HAS_HDD; then TIPO_DISCO="ssd+hdd"
+elif $HAS_SSD; then TIPO_DISCO="ssd"
+elif $HAS_HDD; then TIPO_DISCO="hdd"
 fi
 
 # ── 14. Modelo ───────────────────────────────────────────────
