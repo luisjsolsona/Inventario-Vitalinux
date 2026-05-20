@@ -12,22 +12,22 @@ La plataforma permite a los técnicos de sistemas llevar un inventario actualiza
 El técnico puede revisar los cambios en el detalle del equipo y pulsar **"✓ Aceptar cambios"** para volver el estado a OK.
 
 ### Servidor con Listado de equipos
-![Servidor Inventario](inventario-vitalinux-00.jpg)
+![Servidor Inventario](inventario-vitalinux-00.png)
 
 ### Servidor muestra equipos a revisar
-![Cliente Inventario](inventario-vitalinux-02.jpg)
+![Cliente Inventario](inventario-vitalinux-02.png)
 
 ### Aviso de cambios en HW en detalle
-![Aviso cambios HW](inventario-vitalinux-03.jpg)
+![Aviso cambios HW](inventario-vitalinux-03.png)
 
 ### Opción de importar inventario facilitado por Vitalinux
-![Opción de importar inventario](inventario-vitalinux-04.jpg)
+![Opción de importar inventario](inventario-vitalinux-04.png)
 
 ### Gestión de usuarios con roles
-![Gestión de usuarios con roles](inventario-vitalinux-0.jpg)
+![Gestión de usuarios con roles](inventario-vitalinux-0.png)
 
 ### Notificaciones por correo
-![Notificaciones por correo](inventario-vitalinux-06.jpg)
+![Notificaciones por correo](inventario-vitalinux-06.png)
 
 **Para el técnico / administrador:**
 - Dashboard web con búsqueda, filtros por versión y tipo de disco, y modal de detalle por equipo
