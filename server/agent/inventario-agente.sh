@@ -101,9 +101,12 @@ fi
 
 # ── 8. Etiquetas Migasfree ────────────────────────────────────
 ETIQUETAS="N/A"
-for _try in 1 2 3; do
+_etq_wait=0
+while [[ $_etq_wait -lt 60 ]]; do
   _tags_raw=$(migasfree-tags -g 2>/dev/null || true)
-  echo "$_tags_raw" | grep -qi 'instancia' && { sleep 5; continue; }
+  if echo "$_tags_raw" | grep -qi 'instancia'; then
+    sleep 5; _etq_wait=$((_etq_wait + 5)); continue
+  fi
   ETIQUETAS=$(printf '%s' "$_tags_raw" \
     | tr -d '"' | sed 's/[A-Za-z]*-//g' \
     | tr ',' '\n' | grep -v '^$' \

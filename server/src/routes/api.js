@@ -36,16 +36,21 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
   ];
 
   if (existing) {
-    // Registrar cambios en historial
+    // Campos que se actualizan silenciosamente (sin historial ni notificación)
+    const SILENT = new Set(['ip', 'ip_publica']);
+
     const cambios = [];
     let hwChanged = false;
     for (const campo of campos) {
+      if (campo === 'estado') continue; // estado lo gestiona nuevoEstado, no d.estado
       const vAnt = String(existing[campo] ?? '');
       const vNew = String(d[campo] ?? '');
       if (vAnt !== vNew) {
-        db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
-          .run(d.cid, campo, vAnt, vNew);
-        cambios.push({ campo, valor_ant: vAnt, valor_new: vNew });
+        if (!SILENT.has(campo)) {
+          db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
+            .run(d.cid, campo, vAnt, vNew);
+          cambios.push({ campo, valor_ant: vAnt, valor_new: vNew });
+        }
         if (HW_FIELDS.includes(campo)) hwChanged = true;
       }
     }
