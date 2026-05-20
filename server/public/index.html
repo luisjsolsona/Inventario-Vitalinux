@@ -192,22 +192,69 @@
     input.row-check { cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px; }
     tr.selected td { background: rgba(37,99,235,0.05); }
     tr.selected:hover td { background: rgba(37,99,235,0.1) !important; }
+
+    /* ── Hamburger ── */
+    .hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 7px 8px; border-radius: var(--radius); margin-left: auto; }
+    .hamburger:hover { background: var(--bg3); }
+    .hamburger span { display: block; width: 22px; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.22s; }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .modal-drag-handle { display: block !important; }
+      .hamburger { display: flex; }
+      .header-right {
+        display: none; position: fixed; top: 54px; left: 0; right: 0;
+        background: var(--bg2); border-bottom: 2px solid var(--border);
+        padding: 12px 16px; flex-direction: column; align-items: stretch;
+        gap: 6px; z-index: 99; box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+      }
+      .header-right.open { display: flex; }
+      .header-right .btn { width: 100%; justify-content: center; padding: 11px 14px; font-size: 14px; }
+      .badge-user { text-align: center; padding: 9px 12px; font-size: 13px; }
+      main { padding: 12px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .toolbar { flex-wrap: wrap; }
+      .toolbar select { flex: 1; min-width: 140px; }
+      /* Modal → bottom sheet */
+      .modal-overlay { padding: 0; align-items: flex-end; }
+      .modal { width: 100%; max-width: 100%; max-height: 92dvh; border-radius: 16px 16px 0 0; }
+      @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      /* Grids */
+      .detail-grid { grid-template-columns: 1fr 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .modal-body { padding: 16px; }
+      .modal-header { padding: 16px 16px 12px; }
+      .modal-footer { padding: 12px 16px; }
+    }
+    @media (max-width: 480px) {
+      .detail-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .modal { max-height: 96dvh; }
+      header { padding: 0 14px; }
+    }
   </style>
 </head>
 <body>
 <div class="shell">
   <header>
     <div class="logo">Inventario <span>Vitalinux</span></div>
-    <div class="header-right">
+    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="header-right" id="headerMenu">
       <span class="badge-user" id="badgeUser">···</span>
-      <button class="btn btn-ghost" onclick="openMiPassword()">Mi contraseña</button>
-      <button class="btn btn-ghost" id="btnUsuarios" style="display:none" onclick="openUsuarios()">Usuarios</button>
-      <button class="btn btn-ghost" id="btnConfig" style="display:none" onclick="openConfig()">Notificaciones</button>
-      <button class="btn btn-ghost" onclick="openImport()">Importar</button>
-      <button class="btn btn-ghost" onclick="exportTSV()">Exportar TSV</button>
+      <button class="btn btn-ghost" onclick="openMiPassword();closeMenu()">Mi contraseña</button>
+      <button class="btn btn-ghost" id="btnUsuarios" style="display:none" onclick="openUsuarios();closeMenu()">Usuarios</button>
+      <button class="btn btn-ghost" id="btnConfig" style="display:none" onclick="openConfig();closeMenu()">Notificaciones</button>
+      <button class="btn btn-ghost" onclick="openImport();closeMenu()">Importar</button>
+      <button class="btn btn-ghost" onclick="exportTSV();closeMenu()">Exportar TSV</button>
       <button class="btn btn-ghost" onclick="logout()">Salir</button>
     </div>
   </header>
+  <div id="menuOverlay" style="display:none;position:fixed;inset:0;top:54px;z-index:98" onclick="closeMenu()"></div>
 
   <main>
     <div class="stats-grid">
@@ -268,6 +315,7 @@
 <!-- MODAL DETALLE -->
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
   <div class="modal">
+    <div class="modal-drag-handle" style="display:none;width:40px;height:4px;background:var(--border2);border-radius:2px;margin:10px auto 0;"></div>
     <div class="modal-header">
       <div>
         <div class="modal-subtitle">DETALLE EQUIPO</div>
@@ -404,6 +452,21 @@
 let allData = [], sortField = 'updated_at', sortDir = -1, currentCID = null, isAdmin = false;
 let editUserId = null;
 let selectedCIDs = new Set();
+
+function toggleMenu() {
+  const hb = document.getElementById('hamburger');
+  const menu = document.getElementById('headerMenu');
+  const overlay = document.getElementById('menuOverlay');
+  const open = menu.classList.toggle('open');
+  hb.classList.toggle('open', open);
+  hb.setAttribute('aria-expanded', open);
+  overlay.style.display = open ? 'block' : 'none';
+}
+function closeMenu() {
+  document.getElementById('hamburger').classList.remove('open');
+  document.getElementById('headerMenu').classList.remove('open');
+  document.getElementById('menuOverlay').style.display = 'none';
+}
 
 // ── Init ──────────────────────────────────────────────────────
 (async () => {
