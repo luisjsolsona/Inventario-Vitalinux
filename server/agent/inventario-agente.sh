@@ -101,18 +101,26 @@ fi
 
 # ── 8. Etiquetas Migasfree ────────────────────────────────────
 ETIQUETAS="N/A"
-_etq_wait=0
-while [[ $_etq_wait -lt 60 ]]; do
-  _tags_raw=$(migasfree-tags -g 2>/dev/null || true)
-  if echo "$_tags_raw" | grep -qi 'instancia'; then
-    sleep 5; _etq_wait=$((_etq_wait + 5)); continue
-  fi
-  ETIQUETAS=$(printf '%s' "$_tags_raw" \
-    | tr -d '"' | sed 's/[A-Za-z]*-//g' \
-    | tr ',' '\n' | grep -v '^$' \
-    | tr '\n' ',' | sed 's/,/, /g; s/, $//' || true)
-  break
-done
+if command -v migasfree-tags &>/dev/null; then
+  _etq_wait=0; _etq_empty=0
+  while [[ $_etq_wait -lt 60 ]]; do
+    _tags_raw=$(migasfree-tags -g 2>/dev/null || true)
+    if echo "$_tags_raw" | grep -qi 'instancia'; then
+      # Otro proceso migasfree en marcha, esperar
+      sleep 5; _etq_wait=$((_etq_wait + 5)); continue
+    fi
+    if [[ -z "$_tags_raw" && $_etq_empty -lt 3 ]]; then
+      # Salida vacía puede ser red no lista o fallo silencioso, reintentar
+      _etq_empty=$((_etq_empty + 1))
+      sleep 5; _etq_wait=$((_etq_wait + 5)); continue
+    fi
+    ETIQUETAS=$(printf '%s' "$_tags_raw" \
+      | tr -d '"' | sed 's/[A-Za-z]*-//g' \
+      | tr ',' '\n' | grep -v '^$' \
+      | tr '\n' ',' | sed 's/,/, /g; s/, $//' || true)
+    break
+  done
+fi
 [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 
 # ── 9. CPU ───────────────────────────────────────────────────
