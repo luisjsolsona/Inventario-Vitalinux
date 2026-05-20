@@ -194,18 +194,18 @@ if command -v lsblk &>/dev/null && lsblk -f 2>/dev/null | grep -qi 'ntfs'; then
 fi
 
 # ── 19. Secure Boot ───────────────────────────────────────────
-SECURE_BOOT="---"
+SECURE_BOOT="N/A"
+_sb_efivar="/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
 if command -v mokutil &>/dev/null; then
   SB=$(mokutil --sb-state 2>/dev/null || true)
-  if echo "$SB" | grep -qi "enabled"; then
-    SECURE_BOOT="enabled"
-  elif echo "$SB" | grep -qi "disabled"; then
-    SECURE_BOOT="disabled"
-  else
-    SECURE_BOOT="unknown"
-  fi
-elif [[ -d /sys/firmware/efi ]]; then
-  SECURE_BOOT="unknown"
+  echo "$SB" | grep -qi "enabled"  && SECURE_BOOT="enabled"
+  echo "$SB" | grep -qi "disabled" && SECURE_BOOT="disabled"
+  [[ "$SECURE_BOOT" == "N/A" ]] && SECURE_BOOT="unknown"
+elif [[ -f "$_sb_efivar" ]]; then
+  _sb_val=$(od -An -tu1 "$_sb_efivar" 2>/dev/null | awk '{print $NF}')
+  [[ "$_sb_val" == "1" ]] && SECURE_BOOT="enabled" || SECURE_BOOT="disabled"
+elif [[ ! -d /sys/firmware/efi ]]; then
+  SECURE_BOOT="no-efi"
 fi
 
 # ── 20. IP pública ────────────────────────────────────────────
