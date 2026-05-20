@@ -20,7 +20,7 @@ services:
       - "com.casaos.appstore.app.title=Inventario Vitalinux"
       - "com.casaos.appstore.app.description=Inventario hardware centralizado para equipos Vitalinux de institutos"
       - "com.casaos.appstore.app.icon=https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/icon.svg"
-      - "com.casaos.appstore.app.thumbnail=https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-1.jpg"
+      - "com.casaos.appstore.app.thumbnail=https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-00.png"
       - "com.casaos.appstore.app.port.map=3900:3900"
       - "com.casaos.appstore.app.scheme=http"
       - "com.casaos.appstore.app.index=/"
@@ -43,12 +43,12 @@ x-casaos:
   project_url: "https://github.com/luisjsolsona/Inventario-Vitalinux"
   store_app_id: inventario-vitalinux
   icon: "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/icon.svg"
-  thumbnail: "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-1.jpg"
+  thumbnail: "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-00.png"
   screenshot_link:
-    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-1.jpg"
-    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-2.jpg"
-    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-3.jpg"
-    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-4.jpg"
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-00.png"
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-01.png"
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-02.png"
+    - "https://raw.githubusercontent.com/luisjsolsona/Inventario-Vitalinux/main/inventario-vitalinux-03.png"
   index: /
   port_map: "3900"
   scheme: http
