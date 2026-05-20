@@ -144,6 +144,7 @@ for _dev in /sys/block/*/queue/rotational; do
   [[ -f "$_dev" ]] || continue
   _dname=$(echo "$_dev" | awk -F'/' '{print $4}')
   [[ "$_dname" =~ ^(sr|loop|dm|zram|fd|ram|nbd|md) ]] && continue
+  [[ "$(cat /sys/block/${_dname}/removable 2>/dev/null)" == "1" ]] && continue
   _rot=$(cat "$_dev" 2>/dev/null)
   [[ "$_rot" == "0" ]] && HAS_SSD=true
   [[ "$_rot" == "1" ]] && HAS_HDD=true
@@ -172,7 +173,7 @@ MAC_ETHERNET=$(cat /sys/class/net/${_main_iface}/address 2>/dev/null | tr -d ':'
 [[ -z "$MAC_ETHERNET" ]] && MAC_ETHERNET="N/A"
 
 _wifi_mac=$(for _w in /sys/class/net/*/wireless; do cat "${_w}/../address" 2>/dev/null; done)
-MAC_WIFI="${_wifi_mac:-"-----"}"
+MAC_WIFI="${_wifi_mac:-"----"}"
 
 # ── 17. Gráfica ──────────────────────────────────────────────
 GRAFICA=$(lspci 2>/dev/null | grep -iE 'VGA|3D|Display' \
