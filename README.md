@@ -24,7 +24,7 @@ El técnico puede revisar los cambios en el detalle del equipo y pulsar **"✓ A
 ![Opción de importar inventario](inventario-vitalinux-04.png)
 
 ### Gestión de usuarios con roles
-![Gestión de usuarios con roles](inventario-vitalinux-0.png)
+![Gestión de usuarios con roles](inventario-vitalinux-05.png)
 
 ### Notificaciones por correo
 ![Notificaciones por correo](inventario-vitalinux-06.png)
