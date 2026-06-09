@@ -55,8 +55,12 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
       let vAnt = String(existing[campo] ?? '');
       let vNew = String(d[campo] ?? '');
       // Normalizar para comparación (evita falsos positivos por formato)
-      if (campo === 'cpu')    { vAnt = vAnt.replace(/\s+/g, ' ').trim(); vNew = vNew.replace(/\s+/g, ' ').trim(); }
-      if (campo === 'serial') { vAnt = vAnt.replace(/^\/+/, '').replace(/\/.*$/, '').trim(); }
+      if (campo === 'cpu')     { vAnt = vAnt.replace(/\s+/g, ' ').trim(); vNew = vNew.replace(/\s+/g, ' ').trim(); }
+      if (campo === 'serial')  { vAnt = vAnt.replace(/^\/+/, '').replace(/\/.*$/, '').trim(); }
+      if (campo === 'disco_gb') {
+        const na = parseFloat(vAnt), nn = parseFloat(vNew);
+        if (!isNaN(na) && !isNaN(nn) && na === nn) continue;
+      }
       if (vAnt !== vNew) {
         if (!SILENT.has(campo)) {
           db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
