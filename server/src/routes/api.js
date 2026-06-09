@@ -10,6 +10,8 @@ const MAX_FIELD = 512;
 const trim = (v, max = MAX_FIELD) => (v == null ? null : String(v).trim().slice(0, max));
 
 const HW_FIELDS = ['cpu','memoria_mb','slots_memoria','disco_gb','tipo_disco','modelo','serial','grafica','arch','dualizado','secure_boot'];
+// Campos que se guardan en historial pero no disparan notificaciones ni marcan como REVISAR
+const HISTORIAL_ONLY = new Set(['ultima_act']);
 
 // ── POST /api/inventario  (llamado por el script bash) ────────
 router.post('/inventario', apiTokenMiddleware, (req, res) => {
@@ -39,6 +41,9 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
     // Campos que se actualizan silenciosamente (sin historial ni notificación)
     const SILENT = new Set(['ip', 'ip_publica']);
 
+    // Si el agente no pudo recuperar las etiquetas, conservar el valor existente
+    if (d.etiquetas === 'N/A') d.etiquetas = existing.etiquetas;
+
     const cambios = [];
     let hwChanged = false;
     for (const campo of campos) {
@@ -49,7 +54,9 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
         if (!SILENT.has(campo)) {
           db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
             .run(d.cid, campo, vAnt, vNew);
-          cambios.push({ campo, valor_ant: vAnt, valor_new: vNew });
+          if (!HISTORIAL_ONLY.has(campo)) {
+            cambios.push({ campo, valor_ant: vAnt, valor_new: vNew });
+          }
         }
         if (HW_FIELDS.includes(campo)) hwChanged = true;
       }
