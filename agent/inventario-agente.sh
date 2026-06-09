@@ -85,6 +85,9 @@ SERIAL="N/A"
 if command -v dmidecode &>/dev/null; then
   SERIAL=$(dmidecode -s baseboard-serial-number 2>/dev/null | trim || true)
   [[ "$SERIAL" == "To Be Filled By O.E.M." || -z "$SERIAL" ]] && SERIAL="N/A"
+  # Eliminar formato DMI path: /SERIAL/ruta/extra/ → SERIAL
+  [[ "$SERIAL" != "N/A" ]] && SERIAL=$(echo "$SERIAL" | sed 's|^/||; s|/.*||' | trim)
+  [[ -z "$SERIAL" ]] && SERIAL="N/A"
 fi
 
 # ── 7. Última actualización (normalizada a segundos, sin nanosegundos) ──
@@ -196,17 +199,36 @@ fi
 # ── 19. Secure Boot ───────────────────────────────────────────
 SECURE_BOOT="N/A"
 _sb_efivar="/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
+
+# Método 1: mokutil
 if command -v mokutil &>/dev/null; then
-  SB=$(mokutil --sb-state 2>/dev/null || true)
-  echo "$SB" | grep -qi "enabled"  && SECURE_BOOT="enabled"
-  echo "$SB" | grep -qi "disabled" && SECURE_BOOT="disabled"
-  [[ "$SECURE_BOOT" == "N/A" ]] && SECURE_BOOT="unknown"
-elif [[ -f "$_sb_efivar" ]]; then
-  _sb_val=$(od -An -tu1 "$_sb_efivar" 2>/dev/null | awk '{print $NF}')
-  [[ "$_sb_val" == "1" ]] && SECURE_BOOT="enabled" || SECURE_BOOT="disabled"
-elif [[ ! -d /sys/firmware/efi ]]; then
-  SECURE_BOOT="no-efi"
+  _sb_out=$(mokutil --sb-state 2>/dev/null || true)
+  echo "$_sb_out" | grep -qi "enabled"  && SECURE_BOOT="enabled"
+  echo "$_sb_out" | grep -qi "disabled" && SECURE_BOOT="disabled"
 fi
+
+# Método 2: variable EFI (byte de estado, saltando 4 bytes de atributos)
+if [[ "$SECURE_BOOT" == "N/A" ]]; then
+  if [[ -f "$_sb_efivar" ]]; then
+    _sb_byte=$(od -An -j4 -N1 -tu1 "$_sb_efivar" 2>/dev/null | tr -d ' \n')
+    [[ "$_sb_byte" == "1" ]] && SECURE_BOOT="enabled"
+    [[ "$_sb_byte" == "0" ]] && SECURE_BOOT="disabled"
+  elif [[ ! -d /sys/firmware/efi ]]; then
+    SECURE_BOOT="no-efi"
+  fi
+fi
+
+# Si ambos métodos fallan, intentar /sys/firmware/efi/vars (interfaz antigua)
+if [[ "$SECURE_BOOT" == "N/A" ]]; then
+  _sb_efivar2="/sys/firmware/efi/vars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c/data"
+  if [[ -f "$_sb_efivar2" ]]; then
+    _sb_byte=$(od -An -N1 -tu1 "$_sb_efivar2" 2>/dev/null | tr -d ' \n')
+    [[ "$_sb_byte" == "1" ]] && SECURE_BOOT="enabled"
+    [[ "$_sb_byte" == "0" ]] && SECURE_BOOT="disabled"
+  fi
+fi
+
+[[ "$SECURE_BOOT" == "N/A" ]] && SECURE_BOOT="unknown"
 
 # ── 20. IP pública ────────────────────────────────────────────
 IP_PUBLICA="N/A"

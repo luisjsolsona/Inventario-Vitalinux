@@ -27,6 +27,10 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
       'ip','mac_ethernet','mac_wifi','grafica','dualizado','secure_boot','ip_publica']) {
     d[key] = trim(d[key]);
   }
+  // Normalizar CPU: colapsar espacios múltiples
+  if (d.cpu) d.cpu = d.cpu.replace(/\s+/g, ' ').trim();
+  // Normalizar serial: eliminar formato DMI path (/SERIAL/ruta/) → SERIAL
+  if (d.serial) d.serial = d.serial.replace(/^\/+/, '').replace(/\/.*$/, '').trim();
 
   const db = getDB();
   const existing = db.prepare('SELECT * FROM equipos WHERE cid = ?').get(d.cid);
@@ -48,8 +52,11 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
     let hwChanged = false;
     for (const campo of campos) {
       if (campo === 'estado') continue; // estado lo gestiona nuevoEstado, no d.estado
-      const vAnt = String(existing[campo] ?? '');
-      const vNew = String(d[campo] ?? '');
+      let vAnt = String(existing[campo] ?? '');
+      let vNew = String(d[campo] ?? '');
+      // Normalizar para comparación (evita falsos positivos por formato)
+      if (campo === 'cpu')    { vAnt = vAnt.replace(/\s+/g, ' ').trim(); vNew = vNew.replace(/\s+/g, ' ').trim(); }
+      if (campo === 'serial') { vAnt = vAnt.replace(/^\/+/, '').replace(/\/.*$/, '').trim(); }
       if (vAnt !== vNew) {
         if (!SILENT.has(campo)) {
           db.prepare('INSERT INTO historial (cid, campo, valor_ant, valor_new) VALUES (?,?,?,?)')
@@ -58,7 +65,10 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
             cambios.push({ campo, valor_ant: vAnt, valor_new: vNew });
           }
         }
-        if (HW_FIELDS.includes(campo)) hwChanged = true;
+        // secure_boot: no marcar REVISAR si el cambio es desde/hacia 'unknown' (problema de detección)
+        const esHW = HW_FIELDS.includes(campo);
+        const sbFalsoPositivo = campo === 'secure_boot' && (vAnt === 'unknown' || vNew === 'unknown');
+        if (esHW && !sbFalsoPositivo) hwChanged = true;
       }
     }
     // Estado: REVISAR si cambió HW; si no, conservar REVISAR pendiente o confirmar OK
