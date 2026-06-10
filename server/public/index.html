@@ -317,6 +317,11 @@
     <div id="bulkBar" class="bulk-bar">
       <span id="bulkCount" style="font-size:13px;color:var(--accent);font-weight:600"></span>
       <button class="btn btn-primary btn-sm" onclick="aceptarSeleccionados()">✓ Aceptar seleccionados</button>
+      <select id="bulkUbicacion" style="font-size:12px;padding:4px 8px;border-radius:var(--radius);border:1.5px solid var(--border2);background:var(--bg2);color:var(--text);font-family:'Inter',sans-serif;max-width:220px">
+        <option value="">— Establecer ubicación —</option>
+        <option value="__clear__">Sin ubicación (limpiar)</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="aplicarUbicacionSeleccionados()">📍 Aplicar</button>
       <button id="bulkDelete" class="btn btn-danger btn-sm" style="display:none" onclick="borrarSeleccionados()">✕ Borrar seleccionados</button>
       <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Deseleccionar</button>
     </div>
@@ -689,6 +694,30 @@ async function borrarSeleccionados() {
   clearSelection();
   await loadData();
   showToast(`${ok} equipo${ok !== 1 ? 's' : ''} eliminado${ok !== 1 ? 's' : ''}${fail ? ` · ${fail} error${fail !== 1 ? 'es' : ''}` : ''}`, fail ? 'err' : 'ok');
+}
+
+async function aplicarUbicacionSeleccionados() {
+  const sel = document.getElementById('bulkUbicacion');
+  const valor = sel.value;
+  if (!valor) { showToast('Selecciona una ubicación primero', 'err'); return; }
+  const ubicacion = valor === '__clear__' ? null : valor;
+  const cids = [...selectedCIDs];
+  if (!cids.length) return;
+  let ok = 0, fail = 0;
+  for (const cid of cids) {
+    const r = await fetch(`/equipos/${cid}/ubicacion`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', body: JSON.stringify({ ubicacion })
+    });
+    if (r.ok) {
+      const eq = allData.find(e => e.cid === cid);
+      if (eq) eq.ubicacion = ubicacion;
+      ok++;
+    } else fail++;
+  }
+  sel.value = '';
+  render();
+  showToast(`Ubicación aplicada a ${ok} equipo${ok !== 1 ? 's' : ''}${fail ? ` · ${fail} error${fail !== 1 ? 'es' : ''}` : ''}`, fail ? 'err' : 'ok');
 }
 
 async function aceptarSeleccionados() {
@@ -1194,6 +1223,10 @@ async function loadUbicaciones() {
     const current = sel.value;
     sel.innerHTML = '<option value="">Todas las ubicaciones</option>' +
       ubicaciones.map(u => `<option value="${u.nombre}"${u.nombre === current ? ' selected' : ''}>${u.nombre}</option>`).join('');
+    const bulk = document.getElementById('bulkUbicacion');
+    bulk.innerHTML = '<option value="">— Establecer ubicación —</option>' +
+      '<option value="__clear__">Sin ubicación (limpiar)</option>' +
+      ubicaciones.map(u => `<option value="${u.nombre}">${u.nombre}</option>`).join('');
   } catch {}
 }
 
