@@ -5,7 +5,7 @@ const { authMiddleware } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', authMiddleware, (req, res) => {
-  res.json(getDB().prepare('SELECT * FROM ubicaciones ORDER BY orden, nombre').all());
+  res.json(getDB().prepare('SELECT * FROM ubicaciones ORDER BY nombre COLLATE NOCASE').all());
 });
 
 router.post('/', authMiddleware, (req, res) => {
