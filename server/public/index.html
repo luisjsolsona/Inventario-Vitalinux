@@ -1018,6 +1018,7 @@ function printFiltro() {
       <td>${e.name || '—'}</td>
       <td>${e.cid}</td>
       <td class="st-${(e.estado||'').toLowerCase()}">${e.estado || '—'}</td>
+      <td>${e.ubicacion || '—'}</td>
       <td>${e.ip || '—'}</td>
       <td>${e.cpu || '—'}</td>
       <td style="text-align:right">${e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'}</td>
@@ -1060,7 +1061,7 @@ function printFiltro() {
     </div>
     <table>
       <thead><tr>
-        <th>Nombre</th><th>CID</th><th>Estado</th><th>IP</th>
+        <th>Nombre</th><th>CID</th><th>Estado</th><th>Ubicación</th><th>IP</th>
         <th>CPU</th><th>RAM MB</th><th>Disco</th><th>Tipo</th>
         <th>Versión</th><th>Etiquetas</th><th>Último inventario</th>
       </tr></thead>
@@ -1148,7 +1149,7 @@ async function printEquipo(cid) {
   const { equipo: e, historial } = await r.json();
 
   const fields = [
-    ['CID', e.cid], ['Estado', e.estado], ['Versión', e.version], ['Arquitectura', e.arch],
+    ['CID', e.cid], ['Estado', e.estado], ['Ubicación', e.ubicacion], ['Versión', e.version], ['Arquitectura', e.arch],
     ['SN Placa', e.serial], ['Modelo', e.modelo], ['CPU', e.cpu],
     ['RAM (MB)', e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'],
     ['Slots RAM', e.slots_memoria], ['Disco', e.disco_gb ? fmtBytes(e.disco_gb) : '—'],
