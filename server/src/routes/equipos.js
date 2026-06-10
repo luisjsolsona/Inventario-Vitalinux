@@ -153,6 +153,16 @@ router.get('/:cid', authMiddleware, (req, res) => {
   res.json({ equipo, historial });
 });
 
+// Establecer ubicación
+router.put('/:cid/ubicacion', authMiddleware, (req, res) => {
+  const db = getDB();
+  if (!db.prepare('SELECT cid FROM equipos WHERE cid = ?').get(req.params.cid))
+    return res.status(404).json({ error: 'No encontrado' });
+  const ubicacion = req.body.ubicacion || null;
+  db.prepare('UPDATE equipos SET ubicacion = ? WHERE cid = ?').run(ubicacion, req.params.cid);
+  res.json({ ok: true });
+});
+
 // Aceptar cambios de HW (resetea estado a OK)
 router.post('/:cid/aceptar', authMiddleware, (req, res) => {
   const equipo = getDB().prepare('SELECT cid FROM equipos WHERE cid = ?').get(req.params.cid);

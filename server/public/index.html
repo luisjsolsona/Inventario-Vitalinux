@@ -175,6 +175,9 @@
     .toast.ok { border-color: rgba(22,163,74,0.4); color: var(--green); }
     .toast.err { border-color: rgba(220,38,38,0.4); color: var(--danger); }
 
+    /* ── Ubicación pill en listado ── */
+    .pill-ubic { background: rgba(37,99,235,0.07); color: var(--accent); border: 1px solid rgba(37,99,235,0.18); max-width: 160px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
+
     /* ── Cambios en listado ── */
     .row-changed td { background: rgba(180,83,9,0.04); }
     .row-changed:hover td { background: rgba(180,83,9,0.09) !important; cursor: pointer; }
@@ -192,6 +195,26 @@
     input.row-check { cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px; }
     tr.selected td { background: rgba(37,99,235,0.05); }
     tr.selected:hover td { background: rgba(37,99,235,0.1) !important; }
+
+    /* ── Dropdown exportar/imprimir ── */
+    .exp-wrap { position: relative; }
+    .exp-menu {
+      display: none; position: absolute; top: calc(100% + 6px); right: 0;
+      background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 180px; z-index: 120; overflow: hidden;
+    }
+    .exp-menu.open { display: block; }
+    .exp-menu button {
+      display: block; width: 100%; text-align: left; background: none; border: none;
+      padding: 10px 16px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+      color: var(--text); cursor: pointer;
+    }
+    .exp-menu button:hover { background: var(--bg3); }
+    .exp-menu hr { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+    @media (max-width: 768px) {
+      .exp-wrap, .exp-menu { position: static; width: 100%; }
+      .exp-menu { box-shadow: none; border: 1px solid var(--border); border-radius: var(--radius); margin-top: 4px; }
+    }
 
     /* ── Hamburger ── */
     .hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 7px 8px; border-radius: var(--radius); margin-left: auto; }
@@ -249,8 +272,16 @@
       <button class="btn btn-ghost" onclick="openMiPassword();closeMenu()">Mi contraseña</button>
       <button class="btn btn-ghost" id="btnUsuarios" style="display:none" onclick="openUsuarios();closeMenu()">Usuarios</button>
       <button class="btn btn-ghost" id="btnConfig" style="display:none" onclick="openConfig();closeMenu()">Notificaciones</button>
+      <button class="btn btn-ghost" id="btnUbicaciones" style="display:none" onclick="openUbicaciones();closeMenu()">Ubicaciones</button>
       <button class="btn btn-ghost" onclick="openImport();closeMenu()">Importar</button>
-      <button class="btn btn-ghost" onclick="exportTSV();closeMenu()">Exportar TSV</button>
+      <div class="exp-wrap" id="expWrap">
+        <button class="btn btn-ghost" onclick="toggleExpMenu(event)">Exportar / Imprimir ▾</button>
+        <div class="exp-menu" id="expMenu">
+          <button onclick="exportTSV();closeExpMenu();closeMenu()">⬇ Exportar TSV</button>
+          <hr>
+          <button onclick="printFiltro();closeExpMenu();closeMenu()">🖨 Imprimir / Guardar PDF</button>
+        </div>
+      </div>
       <button class="btn btn-ghost" onclick="logout()">Salir</button>
     </div>
   </header>
@@ -276,6 +307,9 @@
         <option value="OK">OK</option>
         <option value="REVISAR">REVISAR</option>
       </select>
+      <select id="filterUbicacion">
+        <option value="">Todas las ubicaciones</option>
+      </select>
       <button class="btn btn-ghost" onclick="loadData()">↻ Actualizar</button>
       <span id="countBadge" style="font-size:12px;color:var(--text3)"></span>
     </div>
@@ -295,6 +329,7 @@
             <th onclick="sortBy('cid')">CID</th>
             <th onclick="sortBy('estado')">Estado</th>
             <th onclick="sortBy('name')">Nombre</th>
+            <th onclick="sortBy('ubicacion')">Ubicación</th>
             <th onclick="sortBy('ip')">IP</th>
             <th onclick="sortBy('cpu')">CPU</th>
             <th onclick="sortBy('memoria_mb')">RAM MB</th>
@@ -446,10 +481,35 @@
   </div>
 </div>
 
+<!-- MODAL UBICACIONES -->
+<div class="modal-overlay" id="modalUbicaciones" onclick="if(event.target===this)closeUbicaciones()">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Gestión de Ubicaciones</div>
+        <div class="modal-subtitle">Añade, edita o elimina ubicaciones del centro</div>
+      </div>
+      <button class="modal-close" onclick="closeUbicaciones()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="nuevaUbicacion" placeholder="Nueva ubicación..."
+          style="flex:1;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--radius);padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none"
+          onkeydown="if(event.key==='Enter')addUbicacion()">
+        <button class="btn btn-primary" onclick="addUbicacion()">+ Añadir</button>
+      </div>
+      <div id="ubicacionesList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeUbicaciones()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-let allData = [], sortField = 'updated_at', sortDir = -1, currentCID = null, isAdmin = false;
+let allData = [], filteredData = [], ubicaciones = [], sortField = 'updated_at', sortDir = -1, currentCID = null, isAdmin = false;
 let editUserId = null;
 let selectedCIDs = new Set();
 
@@ -483,13 +543,16 @@ function closeMenu() {
     if (isAdmin) {
       document.getElementById('btnUsuarios').style.display = '';
       document.getElementById('btnConfig').style.display = '';
+      document.getElementById('btnUbicaciones').style.display = '';
     }
   } catch {}
 
   await loadStats();
+  await loadUbicaciones();
   render();
   document.getElementById('searchInput').addEventListener('input', render);
   document.getElementById('filterEstado').addEventListener('change', render);
+  document.getElementById('filterUbicacion').addEventListener('change', render);
 })();
 
 async function loadData() {
@@ -519,26 +582,38 @@ async function loadStats() {
 }
 
 // ── Render tabla ──────────────────────────────────────────────
+function shortUbic(u) {
+  return u.replace(/^Edificio [AB] - /, '').replace(/^Departamento /, 'Dep. ');
+}
+
 function render() {
   clearSelection();
   const q = document.getElementById('searchInput').value.toLowerCase();
   const fEstado = document.getElementById('filterEstado').value;
+  const fUbicacion = document.getElementById('filterUbicacion').value;
   let data = allData.filter(e => {
     if (fEstado && e.estado !== fEstado) return false;
+    if (fUbicacion && e.ubicacion !== fUbicacion) return false;
     if (q) {
       const h = Object.values(e).filter(v => v != null).join(' ').toLowerCase();
       if (!h.includes(q)) return false;
     }
     return true;
   });
-  data.sort((a, b) => {
-    const va = a[sortField] ?? '', vb = b[sortField] ?? '';
-    return va < vb ? -sortDir : va > vb ? sortDir : 0;
-  });
+  // Con filtro activo: ordenar por nombre. Sin filtro: columna seleccionada
+  if (q || fEstado || fUbicacion) {
+    data.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+  } else {
+    data.sort((a, b) => {
+      const va = a[sortField] ?? '', vb = b[sortField] ?? '';
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+  }
+  filteredData = data;
   document.getElementById('countBadge').textContent = `${data.length} equipo${data.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('tbody');
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="13" class="no-data">No hay equipos que coincidan</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" class="no-data">No hay equipos que coincidan</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(e => {
@@ -552,6 +627,7 @@ function render() {
       <td><span class="tag-cid">${e.cid}</span></td>
       <td><span class="pill pill-${(e.estado||'').toLowerCase()}">${e.estado || 'N/A'}</span></td>
       <td><span class="tag-name">${dot}${e.name || 'N/A'}</span></td>
+      <td title="${e.ubicacion||''}">${e.ubicacion ? `<span class="pill pill-ubic">${shortUbic(e.ubicacion)}</span>` : '—'}</td>
       <td>${e.ip || '—'}</td>
       <td style="max-width:180px" title="${e.cpu || ''}">${e.cpu || '—'}</td>
       <td>${e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'}</td>
@@ -724,8 +800,16 @@ async function openDetail(cid) {
     histHtml = '<div style="color:var(--text3);font-size:12px">Sin cambios registrados</div>';
   }
 
+  const ubicOptsHtml = '<option value="">Sin ubicación asignada</option>' +
+    ubicaciones.map(u => `<option value="${u.nombre.replace(/"/g,'&quot;')}"${e.ubicacion === u.nombre ? ' selected' : ''}>${u.nombre}</option>`).join('');
+
   document.getElementById('modalBody').innerHTML = `
     <div class="detail-grid">${grid}</div>
+    <div class="section-title">Ubicación</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:20px">
+      <select id="detailUbicacion" style="flex:1;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--radius);padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none">${ubicOptsHtml}</select>
+      <button class="btn btn-primary btn-sm" onclick="saveUbicacion('${e.cid}')">Guardar</button>
+    </div>
     <div class="section-title">Historial de cambios</div>
     ${histHtml}`;
 
@@ -880,7 +964,88 @@ async function guardarMiPassword() {
 }
 
 // ── Export / Import / Auth ────────────────────────────────────
+function toggleExpMenu(e) {
+  e.stopPropagation();
+  document.getElementById('expMenu').classList.toggle('open');
+}
+function closeExpMenu() { document.getElementById('expMenu').classList.remove('open'); }
+document.addEventListener('click', () => closeExpMenu());
+
 async function exportTSV() { window.location.href = '/equipos/export'; }
+
+function printFiltro() {
+  const data = filteredData;
+  if (!data.length) { showToast('No hay equipos que imprimir', 'err'); return; }
+
+  const q = document.getElementById('searchInput').value;
+  const fEstado = document.getElementById('filterEstado').value;
+  const filtroDesc = [
+    fEstado ? `Estado: ${fEstado}` : '',
+    q ? `Búsqueda: "${q}"` : ''
+  ].filter(Boolean).join(' · ') || 'Todos los equipos';
+
+  const rows = data.map(e => `
+    <tr>
+      <td>${e.name || '—'}</td>
+      <td>${e.cid}</td>
+      <td class="st-${(e.estado||'').toLowerCase()}">${e.estado || '—'}</td>
+      <td>${e.ip || '—'}</td>
+      <td>${e.cpu || '—'}</td>
+      <td style="text-align:right">${e.memoria_mb ? Number(e.memoria_mb).toLocaleString() : '—'}</td>
+      <td style="text-align:right">${e.disco_gb ? fmtBytes(e.disco_gb) : '—'}</td>
+      <td>${e.tipo_disco || '—'}</td>
+      <td>${e.version || '—'}</td>
+      <td>${e.etiquetas || '—'}</td>
+      <td>${fmtDate(e.updated_at)}</td>
+    </tr>`).join('');
+
+  const sty = document.createElement('style');
+  sty.id = 'iv-print-list-sty';
+  sty.textContent = `
+    @media print {
+      body > *:not(#iv-print-list) { display: none !important; }
+      #iv-print-list { display: block !important; }
+      @page { size: A4 landscape; margin: 10mm 12mm; }
+    }
+    #iv-print-list { display: none; font-family: Arial, sans-serif; font-size: 9px; color: #1e293b; }
+    #iv-print-list * { box-sizing: border-box; }
+    #iv-print-list .hdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    #iv-print-list h1 { font-size: 13px; font-weight: 700; margin: 0; }
+    #iv-print-list .meta { font-size: 8px; color: #64748b; }
+    #iv-print-list table { width: 100%; border-collapse: collapse; }
+    #iv-print-list th { background: #f1f5f9; padding: 4px 6px; text-align: left; font-weight: 700; border: 1px solid #cbd5e1; font-size: 7.5px; text-transform: uppercase; white-space: nowrap; }
+    #iv-print-list td { padding: 3px 6px; border: 1px solid #e2e8f0; vertical-align: top; word-break: break-word; max-width: 160px; }
+    #iv-print-list tr:nth-child(even) td { background: #f8fafc; }
+    #iv-print-list .st-ok { color: #16a34a; font-weight: 700; }
+    #iv-print-list .st-revisar { color: #b45309; font-weight: 700; }
+    #iv-print-list .footer { margin-top: 6px; font-size: 7.5px; color: #94a3b8; text-align: right; }
+  `;
+  document.head.appendChild(sty);
+
+  const wrap = document.createElement('div');
+  wrap.id = 'iv-print-list';
+  wrap.innerHTML = `
+    <div class="hdr">
+      <h1>Inventario Vitalinux · ${filtroDesc}</h1>
+      <span class="meta">${data.length} equipos · ${new Date().toLocaleString('es-ES')}</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Nombre</th><th>CID</th><th>Estado</th><th>IP</th>
+        <th>CPU</th><th>RAM MB</th><th>Disco</th><th>Tipo</th>
+        <th>Versión</th><th>Etiquetas</th><th>Último inventario</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="footer">Inventario Vitalinux · ${window.location.hostname}</div>
+  `;
+  document.body.appendChild(wrap);
+
+  window.print();
+
+  wrap.remove();
+  sty.remove();
+}
 
 function openImport() {
   document.getElementById('importFile').value = '';
@@ -1019,6 +1184,103 @@ async function printEquipo(cid) {
   overlay.remove();
   sty.remove();
 }
+// ── Ubicaciones ───────────────────────────────────────────────
+async function loadUbicaciones() {
+  try {
+    const r = await fetch('/ubicaciones', { credentials: 'include' });
+    if (!r.ok) return;
+    ubicaciones = await r.json();
+    const sel = document.getElementById('filterUbicacion');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Todas las ubicaciones</option>' +
+      ubicaciones.map(u => `<option value="${u.nombre}"${u.nombre === current ? ' selected' : ''}>${u.nombre}</option>`).join('');
+  } catch {}
+}
+
+async function saveUbicacion(cid) {
+  const ubicacion = document.getElementById('detailUbicacion').value;
+  const r = await fetch(`/equipos/${cid}/ubicacion`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ ubicacion: ubicacion || null })
+  });
+  if (r.ok) {
+    const eq = allData.find(e => e.cid === cid);
+    if (eq) eq.ubicacion = ubicacion || null;
+    render();
+    showToast('Ubicación guardada', 'ok');
+  } else showToast('Error al guardar ubicación', 'err');
+}
+
+async function openUbicaciones() {
+  await loadUbicaciones();
+  renderUbicacionesList();
+  document.getElementById('modalUbicaciones').classList.add('open');
+}
+function closeUbicaciones() { document.getElementById('modalUbicaciones').classList.remove('open'); }
+
+function renderUbicacionesList() {
+  const list = document.getElementById('ubicacionesList');
+  if (!ubicaciones.length) {
+    list.innerHTML = '<div style="color:var(--text3);font-size:13px">No hay ubicaciones definidas</div>';
+    return;
+  }
+  list.innerHTML = ubicaciones.map(u => `
+    <div class="user-row" id="ubic-row-${u.id}">
+      <span class="user-row-name" id="ubic-name-${u.id}"><strong>${u.nombre}</strong></span>
+      <div class="user-row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="editUbicacion(${u.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteUbicacion(${u.id})">Borrar</button>
+      </div>
+    </div>`).join('');
+}
+
+function editUbicacion(id) {
+  const u = ubicaciones.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById(`ubic-name-${id}`).innerHTML =
+    `<input type="text" id="ubic-input-${id}" value="${u.nombre.replace(/"/g,'&quot;')}"
+      style="width:100%;border:1.5px solid var(--accent);border-radius:6px;padding:5px 8px;font-family:Inter,sans-serif;font-size:13px"
+      onkeydown="if(event.key==='Enter')saveEditUbicacion(${id});if(event.key==='Escape')renderUbicacionesList()">`;
+  document.getElementById(`ubic-row-${id}`).querySelector('.user-row-actions').innerHTML =
+    `<button class="btn btn-primary btn-sm" onclick="saveEditUbicacion(${id})">Guardar</button>
+     <button class="btn btn-ghost btn-sm" onclick="renderUbicacionesList()">Cancelar</button>`;
+  document.getElementById(`ubic-input-${id}`).focus();
+}
+
+async function saveEditUbicacion(id) {
+  const input = document.getElementById(`ubic-input-${id}`);
+  const nombre = (input?.value || '').trim();
+  if (!nombre) return;
+  const r = await fetch(`/ubicaciones/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', body: JSON.stringify({ nombre })
+  });
+  if (r.ok) { await loadUbicaciones(); renderUbicacionesList(); render(); showToast('Ubicación actualizada', 'ok'); }
+  else { const d = await r.json(); showToast(d.error || 'Error', 'err'); }
+}
+
+async function deleteUbicacion(id) {
+  const u = ubicaciones.find(x => x.id === id);
+  if (!u || !confirm(`¿Eliminar "${u.nombre}"?\nLos equipos asignados quedarán sin ubicación.`)) return;
+  const r = await fetch(`/ubicaciones/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (r.ok) { await loadUbicaciones(); renderUbicacionesList(); render(); showToast('Ubicación eliminada', 'ok'); }
+  else showToast('Error al eliminar', 'err');
+}
+
+async function addUbicacion() {
+  const input = document.getElementById('nuevaUbicacion');
+  const nombre = (input.value || '').trim();
+  if (!nombre) return;
+  const r = await fetch('/ubicaciones', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', body: JSON.stringify({ nombre })
+  });
+  if (r.ok) { input.value = ''; await loadUbicaciones(); renderUbicacionesList(); showToast('Ubicación añadida', 'ok'); }
+  else { const d = await r.json(); showToast(d.error || 'Error', 'err'); }
+}
+
 async function logout() {
   await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
   location.href = '/login.html';
