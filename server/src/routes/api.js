@@ -27,8 +27,8 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
       'ip','mac_ethernet','mac_wifi','grafica','dualizado','secure_boot','ip_publica']) {
     d[key] = trim(d[key]);
   }
-  // Normalizar CPU: colapsar espacios múltiples
-  if (d.cpu) d.cpu = d.cpu.replace(/\s+/g, ' ').trim();
+  // Normalizar CPU: eliminar separador @ de frecuencia y colapsar espacios
+  if (d.cpu) d.cpu = d.cpu.replace(/ @ /g, ' ').replace(/\s+/g, ' ').trim();
   // Normalizar serial: eliminar formato DMI path (/SERIAL/ruta/) → SERIAL
   if (d.serial) d.serial = d.serial.replace(/^\/+/, '').replace(/\/.*$/, '').trim();
 
@@ -55,7 +55,7 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
       let vAnt = String(existing[campo] ?? '');
       let vNew = String(d[campo] ?? '');
       // Normalizar para comparación (evita falsos positivos por formato)
-      if (campo === 'cpu')     { vAnt = vAnt.replace(/\s+/g, ' ').trim(); vNew = vNew.replace(/\s+/g, ' ').trim(); }
+      if (campo === 'cpu')     { const nc = s => s.replace(/ @ /g, ' ').replace(/\s+/g, ' ').trim(); vAnt = nc(vAnt); vNew = nc(vNew); }
       if (campo === 'serial')  { vAnt = vAnt.replace(/^\/+/, '').replace(/\/.*$/, '').trim(); }
       if (campo === 'disco_gb') {
         const na = parseFloat(vAnt), nn = parseFloat(vNew);
@@ -75,8 +75,8 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
         if (esHW && !sbFalsoPositivo) hwChanged = true;
       }
     }
-    // Estado: REVISAR si cambió HW; si no, conservar REVISAR pendiente o confirmar OK
-    const nuevoEstado = hwChanged ? 'REVISAR' : (existing.estado === 'REVISAR' ? 'REVISAR' : 'OK');
+    // Estado: REVISAR si cambió HW en esta pasada; si no hay cambios HW, siempre OK
+    const nuevoEstado = hwChanged ? 'REVISAR' : 'OK';
     // Actualizar
     db.prepare(`UPDATE equipos SET
       estado=?, version=?, arch=?, name=?, serial=?, ultima_act=?, etiquetas=?,

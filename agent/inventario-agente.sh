@@ -125,7 +125,7 @@ fi
 [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 
 # ── 9. CPU ───────────────────────────────────────────────────
-CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ / /; s/ GHz/GHz/')
+CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ / /; s/ @ / /; s/ GHz/GHz/')
 [[ -z "$CPU" ]] && CPU="N/A"
 
 # ── 10. RAM (MB redondeada a potencia de 2) ───────────────────
