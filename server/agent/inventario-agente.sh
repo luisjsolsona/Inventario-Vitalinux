@@ -46,6 +46,21 @@ json_esc() {
 # ── Trim (sin xargs) ──────────────────────────────────────────
 trim() { sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
 
+# ── Detección de valores placeholder del firmware ──────────────
+# Muchos fabricantes dejan estos campos sin programar y el firmware
+# devuelve el propio nombre del campo o un texto genérico en su lugar.
+is_placeholder() {
+  local v
+  v=$(echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  case "$v" in
+    ""|"to be filled by o.e.m."|"system serial number"|"base board serial number"|\
+    "baseboard serial number"|"chassis serial number"|"default string"|\
+    "not specified"|"none"|"n/a"|"unknown"|"0"|"0000000000"|"123456789"|"1234567890")
+      return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # ── 1. CID ────────────────────────────────────────────────────
 CID=""
 if command -v migasfree-cid &>/dev/null; then
@@ -81,15 +96,22 @@ ARCH="${ARCH_SO}-${ARCH_HW}"
 NAME=$(hostname -s 2>/dev/null || cat /etc/hostname 2>/dev/null | tr -d '\n' || echo "N/A")
 
 # ── 6. SN Placa ───────────────────────────────────────────────
-# Se usa system-serial-number (DMI tipo 1, el que va en la etiqueta del
-# equipo) en vez de baseboard-serial-number (DMI tipo 2). El serial de
-# placa puede ser reescrito por el firmware/EC (visto en portátiles Lenovo
-# tras actualizaciones de BIOS) sin que la placa física cambie, mientras
-# que el system serial es estable durante toda la vida del equipo.
+# No todos los fabricantes programan los mismos campos DMI: en portátiles
+# de marca (Lenovo, Dell...) el fiable suele ser system-serial-number; en
+# PCs de sobremesa genéricos ese campo a veces no está programado y el
+# firmware devuelve un texto placeholder ("System Serial Number", "To Be
+# Filled By O.E.M."...), mientras que baseboard-serial-number sí tiene un
+# valor real. Se prueban en orden y se usa el primero que no sea un
+# placeholder.
 SERIAL="N/A"
 if command -v dmidecode &>/dev/null; then
-  SERIAL=$(dmidecode -s system-serial-number 2>/dev/null | trim || true)
-  [[ "$SERIAL" == "To Be Filled By O.E.M." || -z "$SERIAL" ]] && SERIAL="N/A"
+  for _campo in system-serial-number baseboard-serial-number chassis-serial-number; do
+    _val=$(dmidecode -s "$_campo" 2>/dev/null | trim || true)
+    if ! is_placeholder "$_val"; then
+      SERIAL="$_val"
+      break
+    fi
+  done
 fi
 
 # ── 7. Última actualización (normalizada a segundos, sin nanosegundos) ──
