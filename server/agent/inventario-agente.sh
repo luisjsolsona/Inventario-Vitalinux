@@ -141,7 +141,13 @@ if command -v dmidecode &>/dev/null; then
 fi
 
 # ── 12. Disco ────────────────────────────────────────────────
-DISCO_GB=$(lsblk -bdno SIZE,TYPE 2>/dev/null | awk '$2=="disk"{sum+=$1} END{printf "%.9f", sum/1000000000}')
+# Se excluyen zram, loop, dm-, sr, fd, ram, nbd y md: lsblk los reporta como
+# TYPE="disk" pero no son discos físicos. zram en concreto puede cambiar de
+# tamaño según la RAM libre en cada arranque, dando lecturas distintas cada
+# día sin que el disco real haya cambiado (mismo filtro que usa TIPO_DISCO).
+DISCO_GB=$(lsblk -bdno NAME,SIZE,TYPE 2>/dev/null | awk '
+  $3=="disk" && $1 !~ /^(zram|loop|dm-|sr|fd|ram|nbd|md)/ { sum += $2 }
+  END { if (sum>0) printf "%.9f", sum/1000000000 }')
 [[ -z "$DISCO_GB" ]] && DISCO_GB="N/A"
 
 # ── 13. Tipo disco ────────────────────────────────────────────
