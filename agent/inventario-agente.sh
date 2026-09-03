@@ -81,9 +81,14 @@ ARCH="${ARCH_SO}-${ARCH_HW}"
 NAME=$(hostname -s 2>/dev/null || cat /etc/hostname 2>/dev/null | tr -d '\n' || echo "N/A")
 
 # ── 6. SN Placa ───────────────────────────────────────────────
+# Se usa system-serial-number (DMI tipo 1, el que va en la etiqueta del
+# equipo) en vez de baseboard-serial-number (DMI tipo 2). El serial de
+# placa puede ser reescrito por el firmware/EC (visto en portátiles Lenovo
+# tras actualizaciones de BIOS) sin que la placa física cambie, mientras
+# que el system serial es estable durante toda la vida del equipo.
 SERIAL="N/A"
 if command -v dmidecode &>/dev/null; then
-  SERIAL=$(dmidecode -s baseboard-serial-number 2>/dev/null | trim || true)
+  SERIAL=$(dmidecode -s system-serial-number 2>/dev/null | trim || true)
   [[ "$SERIAL" == "To Be Filled By O.E.M." || -z "$SERIAL" ]] && SERIAL="N/A"
   # Eliminar formato DMI path: /SERIAL/ruta/extra/ → SERIAL
   [[ "$SERIAL" != "N/A" ]] && SERIAL=$(echo "$SERIAL" | sed 's|^/||; s|/.*||' | trim)
