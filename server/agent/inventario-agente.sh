@@ -107,6 +107,8 @@ SERIAL="N/A"
 if command -v dmidecode &>/dev/null; then
   for _campo in system-serial-number baseboard-serial-number chassis-serial-number; do
     _val=$(dmidecode -s "$_campo" 2>/dev/null | trim || true)
+    # Eliminar formato DMI path: /SERIAL/ruta/extra/ → SERIAL
+    _val=$(echo "$_val" | sed 's|^/||; s|/.*||' | trim)
     if ! is_placeholder "$_val"; then
       SERIAL="$_val"
       break
@@ -133,11 +135,9 @@ if command -v migasfree-tags &>/dev/null; then
   while [[ $_etq_wait -lt 60 ]]; do
     _tags_raw=$(migasfree-tags -g 2>/dev/null || true)
     if echo "$_tags_raw" | grep -qi 'instancia'; then
-      # Otro proceso migasfree en marcha, esperar
       sleep 5; _etq_wait=$((_etq_wait + 5)); continue
     fi
     if [[ -z "$_tags_raw" && $_etq_empty -lt 3 ]]; then
-      # Salida vacía puede ser red no lista o fallo silencioso, reintentar
       _etq_empty=$((_etq_empty + 1))
       sleep 5; _etq_wait=$((_etq_wait + 5)); continue
     fi
@@ -151,7 +151,7 @@ fi
 [[ -z "$ETIQUETAS" ]] && ETIQUETAS="N/A"
 
 # ── 9. CPU ───────────────────────────────────────────────────
-CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ / /; s/ GHz/GHz/')
+CPU=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/(R)//g; s/(TM)//g; s/  */ /g; s/ CPU @ / /; s/ @ / /; s/ GHz/GHz/')
 [[ -z "$CPU" ]] && CPU="N/A"
 
 # ── 10. RAM (MB redondeada a potencia de 2) ───────────────────
@@ -167,29 +167,38 @@ if command -v dmidecode &>/dev/null; then
   [[ "${SLOTS_TOTAL:-0}" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
 fi
 
-# ── 12. Disco ────────────────────────────────────────────────
-# Se excluyen zram, loop, dm-, sr, fd, ram, nbd y md: lsblk los reporta como
-# TYPE="disk" pero no son discos físicos. zram en concreto puede cambiar de
-# tamaño según la RAM libre en cada arranque, dando lecturas distintas cada
-# día sin que el disco real haya cambiado (mismo filtro que usa TIPO_DISCO).
-DISCO_GB=$(lsblk -bdno NAME,SIZE,TYPE 2>/dev/null | awk '
-  $3=="disk" && $1 !~ /^(zram|loop|dm-|sr|fd|ram|nbd|md)/ { sum += $2 }
-  END { if (sum>0) printf "%.9f", sum/1000000000 }')
-[[ -z "$DISCO_GB" ]] && DISCO_GB="N/A"
+# ── 12/13. Disco y tipo de disco ─────────────────────────────
+# Solo discos internos. Se excluyen:
+#  - dispositivos virtuales: zram, loop, dm-, sr, fd, ram, nbd, md
+#  - particiones especiales eMMC: mmcblkXbootN, mmcblkXrpmb
+#  - extraíbles (removable=1) y cualquier disco conectado por USB
+#    (pendrives, discos externos y lectores de tarjetas; algunos USB
+#    devuelven removable=0, por eso se comprueba también la ruta sysfs)
+# Sin este filtro, un pendrive conectado al arrancar suma su tamaño a
+# disco_gb y el equipo pasa a REVISAR sin que el disco real haya cambiado.
+_es_disco_interno() {
+  local d="$1"
+  [[ "$d" =~ ^(sr|loop|dm-|zram|fd|ram|nbd|md) ]] && return 1
+  [[ "$d" =~ ^mmcblk[0-9]+(boot[0-9]+|rpmb)$ ]] && return 1
+  [[ "$(cat /sys/block/$d/removable 2>/dev/null)" == "1" ]] && return 1
+  readlink -f "/sys/block/$d" 2>/dev/null | grep -q '/usb' && return 1
+  return 0
+}
 
-# ── 13. Tipo disco ────────────────────────────────────────────
-# NVMe tiene rotational=0, se trata como ssd para compatibilidad con datos históricos
-TIPO_DISCO="N/A"
-HAS_SSD=false; HAS_HDD=false
-for _dev in /sys/block/*/queue/rotational; do
-  [[ -f "$_dev" ]] || continue
-  _dname=$(echo "$_dev" | awk -F'/' '{print $4}')
-  [[ "$_dname" =~ ^(sr|loop|dm|zram|fd|ram|nbd|md) ]] && continue
-  [[ "$(cat /sys/block/${_dname}/removable 2>/dev/null)" == "1" ]] && continue
-  _rot=$(cat "$_dev" 2>/dev/null)
+DISCO_GB="N/A"; TIPO_DISCO="N/A"
+HAS_SSD=false; HAS_HDD=false; _sum=0
+for _sys in /sys/block/*; do
+  _dname=${_sys##*/}
+  _es_disco_interno "$_dname" || continue
+  _sect=$(cat "$_sys/size" 2>/dev/null || echo 0)        # sectores de 512 B
+  [[ "$_sect" =~ ^[0-9]+$ && "$_sect" -gt 0 ]] || continue
+  _sum=$(( _sum + _sect * 512 ))
+  # NVMe tiene rotational=0, se trata como ssd para compatibilidad con datos históricos
+  _rot=$(cat "$_sys/queue/rotational" 2>/dev/null)
   [[ "$_rot" == "0" ]] && HAS_SSD=true
   [[ "$_rot" == "1" ]] && HAS_HDD=true
 done
+(( _sum > 0 )) && DISCO_GB=$(awk -v b="$_sum" 'BEGIN{printf "%.9f", b/1000000000}')
 if $HAS_SSD && $HAS_HDD; then TIPO_DISCO="ssd+hdd"
 elif $HAS_SSD; then TIPO_DISCO="ssd"
 elif $HAS_HDD; then TIPO_DISCO="hdd"
@@ -231,17 +240,36 @@ fi
 # ── 19. Secure Boot ───────────────────────────────────────────
 SECURE_BOOT="N/A"
 _sb_efivar="/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
+
+# Método 1: mokutil
 if command -v mokutil &>/dev/null; then
-  SB=$(mokutil --sb-state 2>/dev/null || true)
-  echo "$SB" | grep -qi "enabled"  && SECURE_BOOT="enabled"
-  echo "$SB" | grep -qi "disabled" && SECURE_BOOT="disabled"
-  [[ "$SECURE_BOOT" == "N/A" ]] && SECURE_BOOT="unknown"
-elif [[ -f "$_sb_efivar" ]]; then
-  _sb_val=$(od -An -tu1 "$_sb_efivar" 2>/dev/null | awk '{print $NF}')
-  [[ "$_sb_val" == "1" ]] && SECURE_BOOT="enabled" || SECURE_BOOT="disabled"
-elif [[ ! -d /sys/firmware/efi ]]; then
-  SECURE_BOOT="no-efi"
+  _sb_out=$(mokutil --sb-state 2>/dev/null || true)
+  echo "$_sb_out" | grep -qi "enabled"  && SECURE_BOOT="enabled"
+  echo "$_sb_out" | grep -qi "disabled" && SECURE_BOOT="disabled"
 fi
+
+# Método 2: variable EFI (byte de estado, saltando 4 bytes de atributos)
+if [[ "$SECURE_BOOT" == "N/A" ]]; then
+  if [[ -f "$_sb_efivar" ]]; then
+    _sb_byte=$(od -An -j4 -N1 -tu1 "$_sb_efivar" 2>/dev/null | tr -d ' \n')
+    [[ "$_sb_byte" == "1" ]] && SECURE_BOOT="enabled"
+    [[ "$_sb_byte" == "0" ]] && SECURE_BOOT="disabled"
+  elif [[ ! -d /sys/firmware/efi ]]; then
+    SECURE_BOOT="no-efi"
+  fi
+fi
+
+# Si ambos métodos fallan, intentar /sys/firmware/efi/vars (interfaz antigua)
+if [[ "$SECURE_BOOT" == "N/A" ]]; then
+  _sb_efivar2="/sys/firmware/efi/vars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c/data"
+  if [[ -f "$_sb_efivar2" ]]; then
+    _sb_byte=$(od -An -N1 -tu1 "$_sb_efivar2" 2>/dev/null | tr -d ' \n')
+    [[ "$_sb_byte" == "1" ]] && SECURE_BOOT="enabled"
+    [[ "$_sb_byte" == "0" ]] && SECURE_BOOT="disabled"
+  fi
+fi
+
+[[ "$SECURE_BOOT" == "N/A" ]] && SECURE_BOOT="unknown"
 
 # ── 20. IP pública ────────────────────────────────────────────
 IP_PUBLICA="N/A"

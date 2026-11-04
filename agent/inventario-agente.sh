@@ -167,29 +167,38 @@ if command -v dmidecode &>/dev/null; then
   [[ "${SLOTS_TOTAL:-0}" -gt 0 ]] && SLOTS_MEMORIA="${SLOTS_TOTAL} (${SLOTS_LIBRES} libres)"
 fi
 
-# ── 12. Disco ────────────────────────────────────────────────
-# Se excluyen zram, loop, dm-, sr, fd, ram, nbd y md: lsblk los reporta como
-# TYPE="disk" pero no son discos físicos. zram en concreto puede cambiar de
-# tamaño según la RAM libre en cada arranque, dando lecturas distintas cada
-# día sin que el disco real haya cambiado (mismo filtro que usa TIPO_DISCO).
-DISCO_GB=$(lsblk -bdno NAME,SIZE,TYPE 2>/dev/null | awk '
-  $3=="disk" && $1 !~ /^(zram|loop|dm-|sr|fd|ram|nbd|md)/ { sum += $2 }
-  END { if (sum>0) printf "%.9f", sum/1000000000 }')
-[[ -z "$DISCO_GB" ]] && DISCO_GB="N/A"
+# ── 12/13. Disco y tipo de disco ─────────────────────────────
+# Solo discos internos. Se excluyen:
+#  - dispositivos virtuales: zram, loop, dm-, sr, fd, ram, nbd, md
+#  - particiones especiales eMMC: mmcblkXbootN, mmcblkXrpmb
+#  - extraíbles (removable=1) y cualquier disco conectado por USB
+#    (pendrives, discos externos y lectores de tarjetas; algunos USB
+#    devuelven removable=0, por eso se comprueba también la ruta sysfs)
+# Sin este filtro, un pendrive conectado al arrancar suma su tamaño a
+# disco_gb y el equipo pasa a REVISAR sin que el disco real haya cambiado.
+_es_disco_interno() {
+  local d="$1"
+  [[ "$d" =~ ^(sr|loop|dm-|zram|fd|ram|nbd|md) ]] && return 1
+  [[ "$d" =~ ^mmcblk[0-9]+(boot[0-9]+|rpmb)$ ]] && return 1
+  [[ "$(cat /sys/block/$d/removable 2>/dev/null)" == "1" ]] && return 1
+  readlink -f "/sys/block/$d" 2>/dev/null | grep -q '/usb' && return 1
+  return 0
+}
 
-# ── 13. Tipo disco ────────────────────────────────────────────
-# NVMe tiene rotational=0, se trata como ssd para compatibilidad con datos históricos
-TIPO_DISCO="N/A"
-HAS_SSD=false; HAS_HDD=false
-for _dev in /sys/block/*/queue/rotational; do
-  [[ -f "$_dev" ]] || continue
-  _dname=$(echo "$_dev" | awk -F'/' '{print $4}')
-  [[ "$_dname" =~ ^(sr|loop|dm|zram|fd|ram|nbd|md) ]] && continue
-  [[ "$(cat /sys/block/${_dname}/removable 2>/dev/null)" == "1" ]] && continue
-  _rot=$(cat "$_dev" 2>/dev/null)
+DISCO_GB="N/A"; TIPO_DISCO="N/A"
+HAS_SSD=false; HAS_HDD=false; _sum=0
+for _sys in /sys/block/*; do
+  _dname=${_sys##*/}
+  _es_disco_interno "$_dname" || continue
+  _sect=$(cat "$_sys/size" 2>/dev/null || echo 0)        # sectores de 512 B
+  [[ "$_sect" =~ ^[0-9]+$ && "$_sect" -gt 0 ]] || continue
+  _sum=$(( _sum + _sect * 512 ))
+  # NVMe tiene rotational=0, se trata como ssd para compatibilidad con datos históricos
+  _rot=$(cat "$_sys/queue/rotational" 2>/dev/null)
   [[ "$_rot" == "0" ]] && HAS_SSD=true
   [[ "$_rot" == "1" ]] && HAS_HDD=true
 done
+(( _sum > 0 )) && DISCO_GB=$(awk -v b="$_sum" 'BEGIN{printf "%.9f", b/1000000000}')
 if $HAS_SSD && $HAS_HDD; then TIPO_DISCO="ssd+hdd"
 elif $HAS_SSD; then TIPO_DISCO="ssd"
 elif $HAS_HDD; then TIPO_DISCO="hdd"
