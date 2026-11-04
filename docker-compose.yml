@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   inventario:
@@ -11,10 +10,10 @@ services:
       - inventario_data:/app/data
     environment:
       - PORT=3900
-      - JWT_SECRET=cambia_esto_por_un_secreto_seguro   # CAMBIAR antes de desplegar
-      - API_TOKEN=cambia_esto_por_un_secreto_seguro    # Mismo valor que JWT_SECRET o uno distinto
+      - JWT_SECRET=${JWT_SECRET:-cambia_esto_por_un_secreto_seguro}   # definir en .env
+      - API_TOKEN=${API_TOKEN:-cambia_esto_por_un_secreto_seguro}     # definir en .env
       - ADMIN_USER=admin
-      - ADMIN_PASS=admin1234                           # CAMBIAR antes de desplegar
+      - ADMIN_PASS=${ADMIN_PASS:-admin1234}   # solo se usa al crear el admin la primera vez
     labels:
       - "com.casaos.appstore.app.id=inventario-vitalinux"
       - "com.casaos.appstore.app.title=Inventario Vitalinux"
