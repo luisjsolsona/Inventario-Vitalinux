@@ -1,7 +1,9 @@
 
 services:
   inventario:
-    build: ./server
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     container_name: inventario-vitalinux
     restart: unless-stopped
     ports:
@@ -14,6 +16,7 @@ services:
       - API_TOKEN=${API_TOKEN:-cambia_esto_por_un_secreto_seguro}     # definir en .env
       - ADMIN_USER=admin
       - ADMIN_PASS=${ADMIN_PASS:-admin1234}   # solo se usa al crear el admin la primera vez
+      - SIN_REPORTAR_DIAS=${SIN_REPORTAR_DIAS:-7}  # días sin inventario para marcar 'Sin reportar'
     labels:
       - "com.casaos.appstore.app.id=inventario-vitalinux"
       - "com.casaos.appstore.app.title=Inventario Vitalinux"

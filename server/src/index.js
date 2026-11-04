@@ -21,7 +21,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // ── Descarga pública del agente (sin login) ───────────────────
 app.get('/agente.sh', (req, res) => {
-  const scriptPath = path.join(__dirname, '../agent/inventario-agente.sh');
+  // En Docker: /app/agent. En local (node desde server/): ../agent en la raíz del repo
+  const scriptPath = [path.join(__dirname, '../agent/inventario-agente.sh'),
+                      path.join(__dirname, '../../agent/inventario-agente.sh')].find(p => fs.existsSync(p));
   let script;
   try {
     script = fs.readFileSync(scriptPath, 'utf8');

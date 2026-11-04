@@ -1,0 +1,7 @@
+.git
+.claude
+*.png
+**/node_modules
+**/data
+*.db*
+.env

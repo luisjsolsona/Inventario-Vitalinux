@@ -70,15 +70,45 @@ La aplicación usa un diseño cliente-servidor: agente Bash en los equipos Vital
 
 ## Quick Start
 
-Requiere Docker y Docker Compose. Antes de levantar el servicio, editar `JWT_SECRET`, `API_TOKEN` y `ADMIN_PASS` en `docker-compose.yml`:
+Requiere Docker y Docker Compose. Los secretos se definen en un fichero `.env` (ignorado por git), no en `docker-compose.yml`:
 
 ```bash
 git clone https://github.com/luisjsolsona/Inventario-Vitalinux.git
 cd Inventario-Vitalinux
+printf 'JWT_SECRET=%s\nAPI_TOKEN=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
+chmod 600 .env
 docker compose up -d --build
 ```
 
-Acceder en `http://localhost:3900`. Las credenciales por defecto son **admin / admin1234** — cambiarlas desde el panel de usuarios o en `docker-compose.yml` antes de desplegar en producción.
+Variables disponibles en `.env`:
+
+| Variable | Uso | Por defecto |
+|---|---|---|
+| `JWT_SECRET` | Firma de las sesiones web | `cambia_esto…` |
+| `API_TOKEN` | Token de los agentes (se inserta en `/agente.sh`) | `cambia_esto…` |
+| `ADMIN_PASS` | Contraseña del admin **solo al crearlo la primera vez** | `admin1234` |
+| `SIN_REPORTAR_DIAS` | Días sin inventario para marcar un equipo como "Sin reportar" | `7` |
+
+Acceder en `http://localhost:3900`. Si no se definió `ADMIN_PASS`, las credenciales iniciales son **admin / admin1234**: cambiarlas desde "Mi contraseña".
+
+El agente vive solo en `agent/inventario-agente.sh`; la imagen Docker lo copia al construirse, así que tras modificarlo hay que reconstruir (`docker compose up -d --build`).
+
+### Copia de seguridad
+
+`scripts/backup-db.sh` hace una copia en caliente de la base de datos en `~/backups/inventario/` (comprimida, conserva 30 días). Para programarla a diario:
+
+```bash
+(crontab -l 2>/dev/null; echo "30 2 * * * $PWD/scripts/backup-db.sh >> $HOME/backups/inventario/backup.log 2>&1") | crontab -
+```
+
+Restaurar una copia:
+
+```bash
+gunzip -c ~/backups/inventario/inventario-AAAA-MM-DD_HHMM.db.gz > /tmp/inventario.db
+docker compose stop
+docker cp /tmp/inventario.db inventario-vitalinux:/app/data/inventario.db
+docker compose start
+```
 
 ## Añadir un equipo cliente al inventario
 
