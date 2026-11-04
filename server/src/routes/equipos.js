@@ -171,6 +171,13 @@ router.post('/:cid/aceptar', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// Borrar historial de un equipo (solo admin) — no toca los datos actuales
+router.delete('/:cid/historial', authMiddleware, (req, res) => {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
+  const r = getDB().prepare('DELETE FROM historial WHERE cid = ?').run(req.params.cid);
+  res.json({ ok: true, borrados: r.changes });
+});
+
 // Eliminar (solo admin)
 router.delete('/:cid', authMiddleware, (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Sin permisos' });

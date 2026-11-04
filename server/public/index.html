@@ -120,6 +120,7 @@
     .modal-close { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
     .modal-close:hover { background: var(--bg3); color: var(--text); }
     .modal-body { padding: 24px; }
+    .modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
     .modal-footer { padding: 14px 24px; border-top: 1px solid var(--border); background: var(--bg3); display: flex; justify-content: flex-end; gap: 8px; border-radius: 0 0 12px 12px; }
 
     /* ── Detail grid ── */
@@ -363,10 +364,12 @@
         <div class="modal-subtitle">DETALLE EQUIPO</div>
         <div class="modal-title" id="modalTitle">—</div>
       </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div class="modal-actions" id="modalActions"></div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
     </div>
     <div class="modal-body" id="modalBody"></div>
-    <div class="modal-footer" id="modalFooter"></div>
   </div>
 </div>
 
@@ -857,9 +860,11 @@ async function openDetail(cid) {
     footerHtml += `<button class="btn btn-primary" onclick="aceptarCambios('${e.cid}')">✓ Aceptar cambios</button>`;
   }
   if (isAdmin) {
+    if (historial.length)
+      footerHtml += `<button class="btn btn-ghost" onclick="borrarHistorial('${e.cid}')">🧹 Borrar historial</button>`;
     footerHtml += `<button class="btn btn-danger" onclick="deleteEquipo('${e.cid}')">Eliminar equipo</button>`;
   }
-  document.getElementById('modalFooter').innerHTML = footerHtml;
+  document.getElementById('modalActions').innerHTML = footerHtml;
 
   document.getElementById('modalOverlay').classList.add('open');
 }
@@ -873,6 +878,16 @@ async function aceptarCambios(cid) {
     await loadData();
     showToast('Cambios aceptados — estado OK', 'ok');
   } else showToast('Error al aceptar cambios', 'err');
+}
+
+async function borrarHistorial(cid) {
+  if (!confirm(`¿Borrar todo el historial de cambios del equipo ${cid}?\nLos datos actuales del equipo no se modifican.`)) return;
+  const r = await fetch(`/equipos/${cid}/historial`, { method: 'DELETE', credentials: 'include' });
+  if (r.ok) {
+    await openDetail(cid);
+    await loadData();
+    showToast('Historial borrado', 'ok');
+  } else showToast(r.status === 403 ? 'Sin permisos' : 'Error al borrar historial', 'err');
 }
 
 async function deleteEquipo(cid) {
