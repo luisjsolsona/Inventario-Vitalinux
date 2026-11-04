@@ -11,7 +11,7 @@ const trim = (v, max = MAX_FIELD) => (v == null ? null : String(v).trim().slice(
 
 const HW_FIELDS = ['cpu','memoria_mb','slots_memoria','disco_gb','tipo_disco','modelo','serial','grafica','arch','dualizado','secure_boot'];
 // Campos que se guardan en historial pero no disparan notificaciones ni marcan como REVISAR
-const HISTORIAL_ONLY = new Set(['ultima_act']);
+const HISTORIAL_ONLY = new Set([]);
 
 // ── POST /api/inventario  (llamado por el script bash) ────────
 router.post('/inventario', apiTokenMiddleware, (req, res) => {
@@ -43,10 +43,13 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
 
   if (existing) {
     // Campos que se actualizan silenciosamente (sin historial ni notificación)
-    const SILENT = new Set(['ip', 'ip_publica']);
+    // ultima_act (fecha de último dpkg upgrade) cambia casi a diario: no aporta al historial
+    const SILENT = new Set(['ip', 'ip_publica', 'ultima_act']);
 
     // Si el agente no pudo recuperar las etiquetas, conservar el valor existente
     if (d.etiquetas === 'N/A') d.etiquetas = existing.etiquetas;
+    // Igual con ultima_act: un envío vacío o N/A no debe borrar la fecha conocida
+    if (!d.ultima_act || d.ultima_act === 'N/A') d.ultima_act = existing.ultima_act;
 
     const cambios = [];
     let hwChanged = false;
