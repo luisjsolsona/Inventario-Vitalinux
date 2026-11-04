@@ -64,6 +64,8 @@
     /* ── Stats ── */
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; box-shadow: var(--shadow); }
+    .stat-card.clickable { cursor: pointer; transition: border-color .15s, transform .15s; }
+    .stat-card.clickable:hover { border-color: var(--warn); transform: translateY(-1px); }
     .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: var(--text2); text-transform: uppercase; margin-bottom: 8px; }
     .stat-val { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1; }
     .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
@@ -289,9 +291,9 @@
 
   <main>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total equipos</div><div class="stat-val" id="sTotal">—</div></div>
-      <div class="stat-card"><div class="stat-label">Estado OK</div><div class="stat-val" id="sActivos" style="color:var(--green)">—</div></div>
-      <div class="stat-card"><div class="stat-label">Revisar</div><div class="stat-val" id="sRevisar" style="color:var(--warn)">—</div></div>
+      <div class="stat-card clickable" onclick="filtrarEstado('')" title="Mostrar todos"><div class="stat-label">Total equipos</div><div class="stat-val" id="sTotal">—</div></div>
+      <div class="stat-card clickable" onclick="filtrarEstado('OK')" title="Filtrar estado OK"><div class="stat-label">Estado OK</div><div class="stat-val" id="sActivos" style="color:var(--green)">—</div></div>
+      <div class="stat-card clickable" onclick="filtrarEstado('REVISAR')" title="Filtrar estado REVISAR"><div class="stat-label">Revisar</div><div class="stat-val" id="sRevisar" style="color:var(--warn)">—</div></div>
       <div class="stat-card"><div class="stat-label">Última sync</div><div class="stat-val" style="font-size:15px;line-height:1.4" id="sUlt">—</div><div class="stat-sub" id="sUltSub"></div></div>
       <div class="stat-card"><div class="stat-label">Versiones</div><div id="sVersiones" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
       <div class="stat-card"><div class="stat-label">Tipo disco</div><div id="sDiscos" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
@@ -559,6 +561,13 @@ function closeMenu() {
   document.getElementById('filterEstado').addEventListener('change', render);
   document.getElementById('filterUbicacion').addEventListener('change', render);
 })();
+
+// Clic en las tarjetas Total / OK / Revisar: aplica el filtro de estado
+function filtrarEstado(v) {
+  document.getElementById('filterEstado').value = v;
+  render();
+  document.querySelector('.toolbar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 async function loadData() {
   const r = await fetch('/equipos/', { credentials: 'include' });
