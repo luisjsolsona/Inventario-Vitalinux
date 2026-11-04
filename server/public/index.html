@@ -295,6 +295,7 @@
       <div class="stat-card clickable" onclick="filtrarEstado('')" title="Mostrar todos"><div class="stat-label">Total equipos</div><div class="stat-val" id="sTotal">—</div></div>
       <div class="stat-card clickable" onclick="filtrarEstado('OK')" title="Filtrar estado OK"><div class="stat-label">Estado OK</div><div class="stat-val" id="sActivos" style="color:var(--green)">—</div></div>
       <div class="stat-card clickable" onclick="filtrarEstado('REVISAR')" title="Filtrar estado REVISAR"><div class="stat-label">Revisar</div><div class="stat-val" id="sRevisar" style="color:var(--warn)">—</div></div>
+      <div class="stat-card clickable" onclick="filtrarEstado('SIN_REPORTAR')" title="Equipos que no envían inventario desde hace días"><div class="stat-label">Sin reportar</div><div class="stat-val" id="sSinReportar" style="color:var(--text2)">—</div><div class="stat-sub" id="sSinReportarSub"></div></div>
       <div class="stat-card"><div class="stat-label">Última sync</div><div class="stat-val" style="font-size:15px;line-height:1.4" id="sUlt">—</div><div class="stat-sub" id="sUltSub"></div></div>
       <div class="stat-card"><div class="stat-label">Versiones</div><div id="sVersiones" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
       <div class="stat-card"><div class="stat-label">Tipo disco</div><div id="sDiscos" style="font-size:12px;line-height:1.9;margin-top:4px">—</div></div>
@@ -309,6 +310,7 @@
         <option value="">Todos los estados</option>
         <option value="OK">OK</option>
         <option value="REVISAR">REVISAR</option>
+        <option value="SIN_REPORTAR" id="optSinReportar">Sin reportar</option>
       </select>
       <select id="filterUbicacion">
         <option value="">Todas las ubicaciones</option>
@@ -519,7 +521,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let allData = [], filteredData = [], ubicaciones = [], sortField = 'updated_at', sortDir = -1, currentCID = null, isAdmin = false;
+let allData = [], filteredData = [], ubicaciones = [], sortField = 'updated_at', sortDir = -1, currentCID = null, isAdmin = false, sinReportarDias = 7;
 let editUserId = null;
 let selectedCIDs = new Set();
 
@@ -588,6 +590,10 @@ async function loadStats() {
     document.getElementById('sTotal').textContent = s.total;
     document.getElementById('sActivos').textContent = s.activos;
     document.getElementById('sRevisar').textContent = s.revisar ?? 0;
+    sinReportarDias = s.sinReportarDias || 7;
+    document.getElementById('sSinReportar').textContent = s.sinReportar ?? 0;
+    document.getElementById('sSinReportarSub').textContent = `más de ${sinReportarDias} días`;
+    document.getElementById('optSinReportar').textContent = `Sin reportar (>${sinReportarDias} días)`;
     const ult = s.ultimaActualizacion ? new Date(s.ultimaActualizacion.replace(' ', 'T') + 'Z') : null;
     document.getElementById('sUlt').textContent = ult ? ult.toLocaleDateString('es-ES') : '—';
     document.getElementById('sUltSub').textContent = ult ? ult.toLocaleTimeString('es-ES') : '';
@@ -596,6 +602,13 @@ async function loadStats() {
     document.getElementById('sDiscos').innerHTML = s.porTipoDisco
       .map(d => `<strong>${d.n}</strong> ${d.tipo_disco || 'N/A'}`).join('<br>');
   } catch {}
+}
+
+// Equipo que no envía inventario desde hace más de sinReportarDias días
+function esSinReportar(e) {
+  if (!e.updated_at) return true;
+  const t = new Date(e.updated_at.replace(' ', 'T') + 'Z').getTime();
+  return Date.now() - t > sinReportarDias * 86400000;
 }
 
 // ── Render tabla ──────────────────────────────────────────────
@@ -609,7 +622,8 @@ function render() {
   const fEstado = document.getElementById('filterEstado').value;
   const fUbicacion = document.getElementById('filterUbicacion').value;
   let data = allData.filter(e => {
-    if (fEstado && e.estado !== fEstado) return false;
+    if (fEstado === 'SIN_REPORTAR') { if (!esSinReportar(e)) return false; }
+    else if (fEstado && e.estado !== fEstado) return false;
     if (fUbicacion && e.ubicacion !== fUbicacion) return false;
     if (q) {
       const h = Object.values(e).filter(v => v != null).join(' ').toLowerCase();
@@ -651,7 +665,7 @@ function render() {
       <td>${e.disco_gb ? fmtBytes(e.disco_gb) : '—'}</td>
       <td><span class="pill pill-${(e.tipo_disco||'').toLowerCase()}">${e.tipo_disco || '—'}</span></td>
       <td>${e.version || '—'}</td>
-      <td style="color:var(--text2);font-size:12px">${fmtDate(e.updated_at)}</td>
+      <td style="font-size:12px;${esSinReportar(e) ? 'color:var(--danger);font-weight:600' : 'color:var(--text2)'}"${esSinReportar(e) ? ` title="Sin reportar desde hace más de ${sinReportarDias} días"` : ''}>${fmtDate(e.updated_at)}</td>
       <td class="mac">${e.mac_ethernet || '—'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail('${e.cid}')">Ver →</button></td>
     </tr>`;
@@ -1033,8 +1047,8 @@ function printFiltro() {
   const q = document.getElementById('searchInput').value;
   const fEstado = document.getElementById('filterEstado').value;
   const filtroDesc = [
-    fEstado ? `Estado: ${fEstado}` : '',
-    q ? `Búsqueda: "${q}"` : ''
+    fEstado === 'SIN_REPORTAR' ? `Sin reportar (>${sinReportarDias} días)` : fEstado ? `Estado: ${fEstado}` : '',
+    q ? `Búsqueda: "${q.replace(/[<>&"'`]/g, '')}"` : ''
   ].filter(Boolean).join(' · ') || 'Todos los equipos';
 
   const rows = data.map(e => `
