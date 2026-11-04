@@ -2,12 +2,13 @@ const express = require('express');
 const { getDB } = require('../db');
 const { apiTokenMiddleware } = require('../middleware/auth');
 const { sendChangeNotification } = require('../utils/mailer');
+const { cleanText, isSafeId } = require('../utils/sanitize');
 
 const router = express.Router();
 
 const MAX_CID   = 128;
 const MAX_FIELD = 512;
-const trim = (v, max = MAX_FIELD) => (v == null ? null : String(v).trim().slice(0, max));
+const trim = (v, max = MAX_FIELD) => cleanText(v, max);
 
 const HW_FIELDS = ['cpu','memoria_mb','slots_memoria','disco_gb','tipo_disco','modelo','serial','grafica','arch','dualizado','secure_boot'];
 // Campos que se guardan en historial pero no disparan notificaciones ni marcan como REVISAR
@@ -20,6 +21,7 @@ router.post('/inventario', apiTokenMiddleware, (req, res) => {
     return res.status(400).json({ error: 'CID requerido' });
   }
   d.cid = d.cid.trim().slice(0, MAX_CID);
+  if (!isSafeId(d.cid)) return res.status(400).json({ error: 'CID con caracteres no válidos' });
 
   // Sanitizar todos los campos de texto
   for (const key of ['estado','version','arch','name','serial','ultima_act','etiquetas',

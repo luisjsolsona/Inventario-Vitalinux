@@ -79,6 +79,9 @@ function initDB() {
   // Añadir columna ubicacion si no existe (migración segura)
   try { db.exec("ALTER TABLE equipos ADD COLUMN ubicacion TEXT"); } catch {}
 
+  // Saneado único de datos ya almacenados (ver utils/sanitize.js)
+  sanitizeStored(db);
+
   // Seed ubicaciones iniciales
   const UBICACIONES_INICIALES = [
     'Edificio A - Aula 01 (1ºA)', 'Edificio A - Aula 02 (1ºB)', 'Edificio A - Aula 03 (4ºA)',
@@ -121,6 +124,33 @@ function initDB() {
   }
 
   console.log('[DB] Base de datos inicializada en', DB_PATH);
+}
+
+function sanitizeStored(db) {
+  const { UNSAFE } = require('./utils/sanitize');
+  const strip = v => (typeof v === 'string' ? v.replace(UNSAFE, '') : v);
+  const tablas = {
+    equipos: ['version','arch','name','serial','ultima_act','etiquetas','cpu','slots_memoria','disco_gb',
+              'tipo_disco','modelo','ip','mac_ethernet','mac_wifi','grafica','dualizado','secure_boot',
+              'ip_publica','ubicacion'],
+    historial: ['campo','valor_ant','valor_new'],
+    ubicaciones: ['nombre'],
+  };
+  let n = 0;
+  db.transaction(() => {
+    for (const [tabla, cols] of Object.entries(tablas)) {
+      const existentes = db.prepare(`PRAGMA table_info(${tabla})`).all().map(c => c.name);
+      const cs = cols.filter(c => existentes.includes(c));
+      for (const row of db.prepare(`SELECT rowid AS _r, ${cs.join(',')} FROM ${tabla}`).all()) {
+        const sucios = cs.filter(c => typeof row[c] === 'string' && row[c] !== strip(row[c]));
+        if (!sucios.length) continue;
+        db.prepare(`UPDATE ${tabla} SET ${sucios.map(c => `${c}=?`).join(',')} WHERE rowid=?`)
+          .run(...sucios.map(c => strip(row[c])), row._r);
+        n++;
+      }
+    }
+  })();
+  if (n) console.log(`[DB] Saneadas ${n} filas con caracteres no permitidos`);
 }
 
 module.exports = { getDB, initDB };

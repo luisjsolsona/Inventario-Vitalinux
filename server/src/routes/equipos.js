@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDB } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { cleanText, isSafeId } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -15,7 +16,11 @@ router.get('/_stats', authMiddleware, (req, res) => {
   const porVersion = db.prepare('SELECT version, COUNT(*) as n FROM equipos GROUP BY version ORDER BY n DESC').all();
   const porTipoDisco = db.prepare('SELECT tipo_disco, COUNT(*) as n FROM equipos GROUP BY tipo_disco ORDER BY n DESC').all();
   const ultimaActualizacion = db.prepare('SELECT MAX(updated_at) as fecha FROM equipos').get().fecha;
-  res.json({ total, activos, revisar, porVersion, porTipoDisco, ultimaActualizacion });
+  // Equipos que no envían inventario desde hace más de SIN_REPORTAR_DIAS días (por defecto 7)
+  const sinReportarDias = Math.max(1, parseInt(process.env.SIN_REPORTAR_DIAS, 10) || 7);
+  const sinReportar = db.prepare("SELECT COUNT(*) as n FROM equipos WHERE updated_at < datetime('now', ?)")
+    .get(`-${sinReportarDias} days`).n;
+  res.json({ total, activos, revisar, sinReportar, sinReportarDias, porVersion, porTipoDisco, ultimaActualizacion });
 });
 
 // Exportar TSV (autenticación por cookie)
@@ -87,9 +92,10 @@ router.post('/import', authMiddleware, (req, res) => {
     const row = {};
     headers.forEach((h, idx) => {
       const field = headerMap[normHdr(h)];
-      if (field) row[field] = (cols[idx] ?? '').trim();
+      if (field) row[field] = cleanText(cols[idx] ?? '') ?? '';
     });
     if (!row.cid) continue;
+    if (!isSafeId(row.cid)) { errors++; continue; }
 
     // Normalizar estado: "Activo" heredado → "OK"
     if (!row.estado || row.estado === 'Activo') row.estado = 'OK';
@@ -158,7 +164,7 @@ router.put('/:cid/ubicacion', authMiddleware, (req, res) => {
   const db = getDB();
   if (!db.prepare('SELECT cid FROM equipos WHERE cid = ?').get(req.params.cid))
     return res.status(404).json({ error: 'No encontrado' });
-  const ubicacion = req.body.ubicacion || null;
+  const ubicacion = cleanText(req.body.ubicacion || '', 100) || null;
   db.prepare('UPDATE equipos SET ubicacion = ? WHERE cid = ?').run(ubicacion, req.params.cid);
   res.json({ ok: true });
 });

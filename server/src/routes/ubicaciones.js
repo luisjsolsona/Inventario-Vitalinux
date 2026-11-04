@@ -1,4 +1,5 @@
 const express = require('express');
+const { cleanText } = require('../utils/sanitize');
 const { getDB } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
@@ -10,7 +11,7 @@ router.get('/', authMiddleware, (req, res) => {
 
 router.post('/', authMiddleware, (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
-  const nombre = (req.body.nombre || '').trim();
+  const nombre = cleanText(req.body.nombre || '', 100);
   if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
   const db = getDB();
   try {
@@ -24,7 +25,7 @@ router.post('/', authMiddleware, (req, res) => {
 
 router.put('/:id', authMiddleware, (req, res) => {
   if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
-  const nombre = (req.body.nombre || '').trim();
+  const nombre = cleanText(req.body.nombre || '', 100);
   if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
   const db = getDB();
   const ubic = db.prepare('SELECT nombre FROM ubicaciones WHERE id = ?').get(req.params.id);

@@ -1,4 +1,5 @@
 const express = require('express');
+const { isSafeId } = require('../utils/sanitize');
 const bcrypt = require('bcryptjs');
 const { getDB } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
@@ -23,6 +24,7 @@ router.post('/', authMiddleware, soloAdmin, (req, res) => {
   const { username, password, rol } = req.body;
   if (!username || !password || !rol) return res.status(400).json({ error: 'Faltan campos' });
   if (!['admin', 'tecnico', 'viewer'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
+  if (!isSafeId(username.trim())) return res.status(400).json({ error: 'Usuario: solo letras, números y . _ - @' });
   try {
     const hash = bcrypt.hashSync(password, 10);
     const { lastInsertRowid } = getDB()
